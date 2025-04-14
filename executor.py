@@ -93,15 +93,15 @@ def eval_expr(expression, table, memory):
     Evaluates a single arithmetic expression involving basic operations:
     add, subtract, multiply, divide.
 
-    The expression can involve: - Constants (e.g., "const_100") - Table
-    references (e.g., "table[0][\"Revenue\"]") - Memory references (e.g.,
-    "#0", "#1") which are previously computed intermediate results
+    The expression can involve:
+        - Constants (e.g., "const_100")
+        - Table references (e.g., "table[0][\"Revenue\"]")
+        - Memory references (e.g., "#0", "#1") which are previously computed intermediate results.
 
-    Parameters: expression (str): A string expression like 'subtract(#0,
-    181001)'. table (List[Dict]): A list of dictionaries representing a
-    table (e.g., parsed from HTML or CSV). memory (Dict[str, float]): A
-    dictionary storing intermediate computation results by keys like '#0',
-    '#1'.
+    Parameters:
+        expression (str): A string expression like 'subtract(#0, 181001)'.
+        table (List[Dict]): A list of dictionaries representing a table (e.g., parsed from HTML or CSV).
+        memory (Dict[str, float]): A dictionary storing intermediate computation results by keys like '#0', '#1'.
 
     Returns:
         float: The result of evaluating the arithmetic expression.
@@ -110,49 +110,61 @@ def eval_expr(expression, table, memory):
         ZeroDivisionError: If a divide operation attempts to divide by zero.
         ValueError: If the expression format is unknown or operands can't be resolved.
     """
-    # Remove any whitespace to simplify parsing (e.g., 'subtract( #0 ,
-    # 100 )' becomes 'subtract(#0,100)')
+    # Remove any whitespace to simplify parsing (e.g., 'subtract( #0 , 100 )' becomes 'subtract(#0,100)')
     expression = expression.replace(" ", "")
 
     # Handle addition: 'add(a, b)'
     if expression.startswith("add("):
         operands = expression[4:-1].split(
             ",")  # Extract 'a' and 'b' from 'add(a,b)'
-        return resolve_value(operands[0], table, memory) + resolve_value(
-            operands[1], table, memory)
+        val1 = resolve_value(operands[0], table, memory)
+        val2 = resolve_value(operands[1], table, memory)
+        result = val1 + val2
+        print(f"Intermediate: {expression} → {val1} + {val2} = {result}")
+        return result
 
     # Handle subtraction: 'subtract(a, b)'
     elif expression.startswith("subtract("):
         operands = expression[9:-1].split(
             ",")  # Extract 'a' and 'b' from 'subtract(a,b)'
-        return resolve_value(operands[0], table, memory) - resolve_value(
-            operands[1], table, memory)
+        val1 = resolve_value(operands[0], table, memory)
+        val2 = resolve_value(operands[1], table, memory)
+        result = val1 - val2
+        print(f"Intermediate: {expression} → {val1} - {val2} = {result}")
+        return result
 
     # Handle multiplication: 'multiply(a, b)'
     elif expression.startswith("multiply("):
         operands = expression[9:-1].split(
             ",")  # Extract 'a' and 'b' from 'multiply(a,b)'
-        return resolve_value(operands[0], table, memory) * resolve_value(
-            operands[1], table, memory)
+        val1 = resolve_value(operands[0], table, memory)
+        val2 = resolve_value(operands[1], table, memory)
+        result = val1 * val2
+        print(f"Intermediate: {expression} → {val1} * {val2} = {result}")
+        return result
 
     # Handle division: 'divide(a, b)'
     elif expression.startswith("divide("):
         operands = expression[7:-1].split(
             ",")  # Extract 'a' and 'b' from 'divide(a,b)'
-        try:
-            denominator = resolve_value(operands[1], table, memory)
-            if denominator == 0:
-                print(f"Warning: Division by zero in expression: {expression}")
-                return float('nan')
-            return resolve_value(operands[0], table, memory) / denominator
-        except ZeroDivisionError:
-            print(f"Division by zero in: {expression}")
+        val1 = resolve_value(operands[0], table, memory)
+        denominator = resolve_value(operands[1], table, memory)
+
+        # Check for division by zero
+        if denominator == 0:
+            print(f"Warning: Division by zero in expression: {expression}")
             return float('nan')
 
+        result = val1 / denominator
+        print(
+            f"Intermediate: {expression} → {val1} / {denominator} = {result}")
+        return result
+
     else:
-        # If it's not a recognized operation, attempt to directly resolve it (e.g., "#0", "const_100", or
-        # "table[0][\"Revenue\"]")
-        return resolve_value(expression, table, memory)
+        # If it's not a recognized operation, attempt to directly resolve it (e.g., "#0", "const_100", or "table[0][\"Revenue\"]")
+        result = resolve_value(expression, table, memory)
+        print(f"Intermediate: {expression} → Resolved to {result}")
+        return result
 
 
 def resolve_value(value, table, memory):
