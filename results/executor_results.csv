@@ -1190,7 +1190,7 @@ train,Single_EW/2016/page_92.pdf-1,what was the percent change in matching contr
 train,Double_BLL/2010/page_58.pdf,what percentage of net assets acquired was goodwill?,"divide(100.2, 345.6)",0.28993,0.28993,True,
 train,Double_BLL/2010/page_58.pdf,what percentage of net assets acquired was property plant and equipment?,"divide(265.9, 345.6)",0.76939,0.76939,True,
 train,Double_PNC/2011/page_208.pdf,in 2011 what was the percentage change in the commercial mortgage recourse obligations .,"subtract(47, 54), divide(#0, 54)",-0.12963,-0.12963,True,
-train,Double_PNC/2011/page_208.pdf,"for commercial mortgage recourse obligations , what was average reserve adjustments net for 2010 and 2011 , in millions?","table_average(reserve adjustments net, none)",5.0,,False,ValueError
+train,Double_PNC/2011/page_208.pdf,"for commercial mortgage recourse obligations , what was average reserve adjustments net for 2010 and 2011 , in millions?","table_average(reserve adjustments net, none)",5.0,0.0,False,
 train,Single_ETR/2016/page_144.pdf-3,"what are long term debt payments in the next three years , in thousands?\\n","add(307403, 828084), add(#0, 724899)",1860386.0,1860386.0,True,
 train,Double_IPG/2009/page_93.pdf,what was the total cost of all shares of common stock upon the exercise of outstanding stock options that were approved by security holders?,"multiply(34317386, 16.11)",552853088.46,552853088.46,True,
 train,Double_IPG/2009/page_93.pdf,what was the total number of equity compensation plans approved by security holders,"add(34317386, 52359299)",86676685.0,86676685.0,True,
@@ -3540,7 +3540,7 @@ train,Double_MRO/2009/page_57.pdf,by what percentage did the average price of th
 train,Double_MRO/2009/page_57.pdf,what was the difference in the average price of wti crude oil and western canadian select during 2008??,"subtract(99.75, 79.59)",20.16,20.16,True,
 train,Double_AWK/2015/page_106.pdf,what was the allowance for borrowed funds used during construction as a percentage of allowance for other funds used during construction during 2015?,"divide(8, 13)",0.61538,0.61538,True,
 train,Double_AWK/2015/page_106.pdf,what was the growth in allowance for other funds used during construction from 2013 to 2014,"subtract(const_9, 13), divide(#0, const_9)",-0.44444,-0.44444,True,
-train,Double_MRO/2008/page_146.pdf,what was average contingent rental amount in millions for the three year period?,"table_average(contingent rental, none)",27.66667,,False,ValueError
+train,Double_MRO/2008/page_146.pdf,what was average contingent rental amount in millions for the three year period?,"table_average(contingent rental, none)",27.66667,27.66667,True,
 train,Double_MRO/2008/page_146.pdf,by how much did minimum rental increase from 2006 to 2008?,"subtract(245, 172), divide(#0, 172)",0.42442,0.42442,True,
 train,Single_AWK/2018/page_152.pdf-2,by how much did the grant date fair value per share increase from 2017 to 2018?,"subtract(73.62, 72.81), divide(#0, 72.81)",0.01112,0.01112,True,
 train,Double_AAPL/2007/page_70.pdf,what was the percentage change in the allowance for doubtful accounts from 2005 to 2006?,"subtract(52, 46), divide(#0, 46)",0.13043,0.13043,True,

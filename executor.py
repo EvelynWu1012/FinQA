@@ -187,6 +187,117 @@ def eval_expr(expression, table, memory):
         print(f"Intermediate: {expression} → {val1} > {val2} = {result}")
         return result
 
+    elif expression.startswith("table_average("):
+        try:
+            # Step 1: Extract the exact inner content with perfect space preservation
+            inner_content = expression[len("table_average("):-1]
+
+            # Step 2: Parse with absolute space preservation
+            if inner_content.lstrip().startswith(('"', "'")):
+                # Quoted identifier case
+                quote_char = inner_content.lstrip()[0]
+                quoted_part = inner_content.split(quote_char)[1]
+                row_identifier = quoted_part.split(quote_char)[0]
+                remaining = inner_content[
+                            len(quote_char) + len(row_identifier) + 2:].lstrip(
+                    ', ').strip()
+            else:
+                # Unquoted identifier case - preserve exact spacing
+                comma_pos = inner_content.find(',')
+                if comma_pos >= 0:
+                    row_identifier = inner_content[:comma_pos].strip()
+                    remaining = inner_content[comma_pos + 1:].strip()
+                else:
+                    row_identifier = inner_content.strip()
+                    remaining = "none"
+
+            none_value = remaining.split(',')[0].strip(
+                ' "\'') if remaining != "none" else "none"
+
+            # Step 3: Verify we have the exact original spacing
+            original_identifier = \
+            expression.split('(', 1)[1].split(')')[0].split(',')[0].strip()
+            if (original_identifier.startswith(('"', "'")) and
+                    original_identifier.endswith(('"', "'"))):
+                original_identifier = original_identifier[1:-1]
+
+            # Use the original spacing if different
+            if ' ' in original_identifier and original_identifier != row_identifier:
+                row_identifier = original_identifier
+
+            print(
+                f"debug: EXACT identifier: '{row_identifier}' (length: {len(row_identifier)})")
+
+            # Step 4: Flexible matching with multiple strategies
+            target_row = None
+            normalized_input = re.sub(r'[^a-z0-9 ]', '',
+                                      row_identifier.lower())
+
+            for row in table:
+                for key in row.keys():
+                    if key.strip().lower() in ['( in millions )',
+                                               'description', 'item', '']:
+                        table_value = row[key].strip()
+                        normalized_table = re.sub(r'[^a-z0-9 ]', '',
+                                                  table_value.lower())
+
+                        # Matching strategies in order of preference
+                        if (
+                                table_value.lower() == row_identifier.lower() or  # Exact match
+                                normalized_table == normalized_input or  # Punctuation normalized
+                                normalized_table.replace(" ",
+                                                         "") == normalized_input.replace(
+                            " ", "")):  # Space insensitive
+                            target_row = row
+                            break
+                if target_row:
+                    break
+
+            if not target_row:
+                print(f"debug: No match for '{row_identifier}'")
+                print("debug: Available identifiers:")
+                for i, row in enumerate(table):
+                    id_val = row.get('( in millions )', row.get('description',
+                                                                row.get('item',
+                                                                        '')))
+                    print(f"Row {i}: '{id_val}'")
+                return 0.0
+
+            # Step 5: Dynamic year handling with robust parsing
+            year_columns = [col for col in table[0].keys() if
+                            col.strip().isdigit() and len(col) == 4]
+            if not year_columns:  # Fallback if no year columns detected
+                year_columns = ["2011", "2010", "2009", "2008", "2007", "2006"]
+
+            values = []
+            for col in year_columns:
+                if col in target_row:
+                    try:
+                        val_str = target_row[col]
+                        # Handle all number formats: $1,000, (200), etc.
+                        val_str = val_str.replace('$', '').replace(',', '')
+                        if '(' in val_str and ')' in val_str:
+                            val_str = '-' + val_str.split('(')[1].split(')')[0]
+                        val = float(val_str.split()[0])
+                        values.append(val)
+                    except (ValueError, IndexError) as e:
+                        print(
+                            f"debug: Skipping invalid value '{target_row[col]}': {e}")
+                        continue
+
+            if values:
+                result = sum(values) / len(values)
+                result = round(result, 5)
+                print(
+                    f"debug: SUCCESS: average of '{row_identifier}' = {result}")
+                return result
+            return 0.0
+
+        except Exception as e:
+            print(f"debug: ERROR in table_average: {str(e)}")
+            return 0.0
+
+
     else:
         # If it's not a recognized operation, attempt to directly resolve it
         # (e.g., "#0", "const_100", or "table[0][\"Revenue\"]")
