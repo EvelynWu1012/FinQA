@@ -139,14 +139,19 @@ def eval_expr(expression, table, memory):
     elif expression.startswith("divide("):
         operands = expression[7:-1].split(
             ",")  # Extract 'a' and 'b' from 'divide(a,b)'
-        denominator = resolve_value(operands[1], table, memory)
-        if denominator == 0:
-            raise ZeroDivisionError(
-                "Division by zero.")  # Protect against divide-by-zero errors
-        return resolve_value(operands[0], table, memory) / denominator
+        try:
+            denominator = resolve_value(operands[1], table, memory)
+            if denominator == 0:
+                print(f"Warning: Division by zero in expression: {expression}")
+                return float('nan')
+            return resolve_value(operands[0], table, memory) / denominator
+        except ZeroDivisionError:
+            print(f"Division by zero in: {expression}")
+            return float('nan')
 
     else:
-        # If it's not a recognized operation, attempt to directly resolve it (e.g., "#0", "const_100", or "table[0][\"Revenue\"]")
+        # If it's not a recognized operation, attempt to directly resolve it (e.g., "#0", "const_100", or
+        # "table[0][\"Revenue\"]")
         return resolve_value(expression, table, memory)
 
 
