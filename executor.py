@@ -83,6 +83,7 @@ def parse_table(raw_table):
 
     return parsed
 
+
 """
 Step 3: Build the Program Executor
 """
@@ -96,21 +97,26 @@ def eval_expr(expression, table, memory):
     The expression can involve:
         - Constants (e.g., "const_100")
         - Table references (e.g., "table[0][\"Revenue\"]")
-        - Memory references (e.g., "#0", "#1") which are previously computed intermediate results.
+        - Memory references (e.g., "#0", "#1") which are previously computed
+        intermediate results.
 
     Parameters:
         expression (str): A string expression like 'subtract(#0, 181001)'.
-        table (List[Dict]): A list of dictionaries representing a table (e.g., parsed from HTML or CSV).
-        memory (Dict[str, float]): A dictionary storing intermediate computation results by keys like '#0', '#1'.
+        table (List[Dict]): A list of dictionaries representing a table (
+        e.g., parsed from HTML or CSV).
+        memory (Dict[str, float]): A dictionary storing intermediate
+        computation results by keys like '#0', '#1'.
 
     Returns:
         float: The result of evaluating the arithmetic expression.
 
     Raises:
         ZeroDivisionError: If a divide operation attempts to divide by zero.
-        ValueError: If the expression format is unknown or operands can't be resolved.
+        ValueError: If the expression format is unknown or operands can't be
+        resolved.
     """
-    # Remove any whitespace to simplify parsing (e.g., 'subtract( #0 , 100 )' becomes 'subtract(#0,100)')
+    # Remove any whitespace to simplify parsing (e.g., 'subtract( #0 ,
+    # 100 )' becomes 'subtract(#0,100)')
     expression = expression.replace(" ", "")
 
     # Handle addition: 'add(a, b)'
@@ -161,7 +167,8 @@ def eval_expr(expression, table, memory):
         return result
 
     else:
-        # If it's not a recognized operation, attempt to directly resolve it (e.g., "#0", "const_100", or "table[0][\"Revenue\"]")
+        # If it's not a recognized operation, attempt to directly resolve it
+        # (e.g., "#0", "const_100", or "table[0][\"Revenue\"]")
         result = resolve_value(expression, table, memory)
         print(f"Intermediate: {expression} → Resolved to {result}")
         return result
@@ -178,7 +185,8 @@ def resolve_value(value, table, memory):
     Parameters:
         value (str | int | float): The value or reference to resolve.
         table (list[dict]): A table of rows (dicts) to lookup values if needed.
-        memory (dict): Dictionary storing intermediate computed values by keys like "#0", "#1".
+        memory (dict): Dictionary storing intermediate computed values by
+        keys like "#0", "#1".
 
     Returns:
         float: The resolved numeric value.
@@ -224,27 +232,36 @@ def resolve_value(value, table, memory):
 
 def execute_program(program, table):
     """
-    Executes a sequence of arithmetic operations defined in a single string of expressions.
+    Executes a sequence of arithmetic operations defined in a single string
+    of expressions.
 
-    Each expression can reference previously computed results using memory keys like '#0', '#1', etc.
-    The results of each step are stored in a memory dictionary and can be used in subsequent expressions.
+    Each expression can reference previously computed results using memory
+    keys like '#0', '#1', etc.
+    The results of each step are stored in a memory dictionary and can be
+    used in subsequent expressions.
 
     Parameters:
-        program (str): A string containing comma-separated expressions to be executed sequentially.
+        program (str): A string containing comma-separated expressions to be
+        executed sequentially.
                        Each expression may involve constants (e.g., const_100),
-                       table references (e.g., table[0]["Revenue"]), or memory references (e.g., #0).
-        table (List[Dict]): A list of dictionaries representing a table structure
+                       table references (e.g., table[0]["Revenue"]),
+                       or memory references (e.g., #0).
+        table (List[Dict]): A list of dictionaries representing a table
+        structure
                             (e.g., parsed from an HTML table or a CSV file).
 
     Returns:
         float: The result of the final expression in the program sequence.
 
     Example:
-        program = "subtract(75.95, const_100), divide(#0, const_100), subtract(102.11, const_100), divide(#2, const_100), subtract(#1, #3)"
+        program = "subtract(75.95, const_100), divide(#0, const_100),
+        subtract(102.11, const_100), divide(#2, const_100), subtract(#1, #3)"
         result = execute_program(program, table)
-        # This will evaluate the expressions step-by-step using intermediate memory.
+        # This will evaluate the expressions step-by-step using intermediate
+        memory.
     """
-    memory = {}  # Dictionary to hold intermediate results, keyed as '#0', '#1', etc.
+    memory = {}  # Dictionary to hold intermediate results, keyed as '#0',
+    # '#1', etc.
 
     # Split the input program string into individual expressions by commas
     steps = re.findall(r'[^,()]*\([^)]*\)[^,()]*|[^,()]+', program)
@@ -253,16 +270,18 @@ def execute_program(program, table):
         result = eval_expr(step, table, memory)  # Evaluate each expression
         memory[f"#{i}"] = result  # Store result in memory with key like '#0'
 
-    return round(result,5) # Return the final result
+    return round(result, 5)  # Return the final result
 
 
 def test_executor(url):
     """
-    Runs a test suite over the first few examples in the dataset to validate the program executor.
+    Runs a test suite over the first few examples in the dataset to validate
+    the program executor.
     Now handles examples with multiple QA pairs (qa_0, qa_1, etc.)
     """
     # Load sample data from a JSON file
     data = load_data(url)
+    success, total = 0, 0
 
     # Test on the first 5 examples from the dataset
     for example in data:
@@ -277,18 +296,21 @@ def test_executor(url):
                 qa_pairs.append(example[qa_key])
                 i += 1
             else:
-                # Also check for just "qa" (without number) for backward compatibility
+                # Also check for just "qa" (without number) for backward
+                # compatibility
                 if i == 0 and "qa" in example:
                     qa_pairs.append(example["qa"])
                 break
 
         if not qa_pairs:
             print(
-                f"Skipping example {example.get('id', 'unknown')} - no QA pairs found")
+                f"Skipping example {example.get('id', 'unknown')} - no QA "
+                f"pairs found")
             continue
 
         print(
-            f"\nProcessing example {example.get('id', 'unknown')} with {len(qa_pairs)} QA pairs")
+            f"\nProcessing example {example.get('id', 'unknown')} with "
+            f"{len(qa_pairs)} QA pairs")
         print("-" * 50)
 
         for j, qa in enumerate(qa_pairs):
@@ -313,8 +335,13 @@ def test_executor(url):
                 print(f"Program: {program}")
                 print(f"Expected: {expected_answer}")
                 print(f"Predicted: {predicted_answer}")
-                print("Match:",
-                      abs(predicted_answer - expected_answer) < 0.01)
+                # Compare and update counters
+                if abs(predicted_answer - expected_answer) < 0.01:
+                    print("Match: ✅")
+                    success += 1
+                else:
+                    print("Match: ❌")
+                total += 1
                 print("-" * 50)
 
             except KeyError as e:
@@ -322,15 +349,13 @@ def test_executor(url):
             except Exception as e:
                 print(f"Error processing QA pair {j}: {str(e)}")
 
+    # Print final accuracy
+    print(
+        f"\n✅ Accuracy: {success}/{total} = {success / total:.2%}" if total
+                                                                      > 0
+        else "\nNo QA pairs processed.")
 
 
 url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
 # Call the test function
 test_executor(url)
-
-# Now you can use train_data
-# print(train_data[0])  # Example to access the first item in the loaded data
-# Example usage:
-#raw_table = train_data[0]["table"]
-#parsed_table = parse_table(raw_table)
-#print(parsed_table)
