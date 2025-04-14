@@ -166,6 +166,27 @@ def eval_expr(expression, table, memory):
             f"Intermediate: {expression} → {val1} / {denominator} = {result}")
         return result
 
+    # Handle exponentiation: exp(a, b) = a ** b
+    elif expression.startswith("exp("):
+        operands = expression[4:-1].split(",")
+        if len(operands) != 2:
+            raise ValueError(
+                f"Invalid number of arguments in expression: {expression}")
+        base = resolve_value(operands[0], table, memory)
+        exponent = resolve_value(operands[1], table, memory)
+        result = base ** exponent
+        print(f"Intermediate: {expression} → {base} ** {exponent} = {result}")
+        return result
+
+    # Handle greater
+    elif expression.startswith("greater("):
+        operands = expression[8:-1].split(",")
+        val1 = resolve_value(operands[0], table, memory)
+        val2 = resolve_value(operands[1], table, memory)
+        result = "yes" if val1 > val2 else "no"
+        print(f"Intermediate: {expression} → {val1} > {val2} = {result}")
+        return result
+
     else:
         # If it's not a recognized operation, attempt to directly resolve it
         # (e.g., "#0", "const_100", or "table[0][\"Revenue\"]")
@@ -173,15 +194,15 @@ def eval_expr(expression, table, memory):
         print(f"Intermediate: {expression} → Resolved to {result}")
         return result
 
-
 def resolve_value(value, table, memory):
     """
     Resolves the input `value` to a numerical float.
 
     The function supports:
     - Memory references (e.g., "#0", "#1") from previous steps in `memory`
-    - Named constants (e.g., "const_100" → 100.0)
+    - Named constants (e.g., "const_100" → 100.0, "const_m1" → -1.0)
     - Raw numeric strings (e.g., "75.95", "-10")
+    - Percentages (e.g., "4.02%" → 0.0402)
     Parameters:
         value (str | int | float): The value or reference to resolve.
         table (list[dict]): A table of rows (dicts) to lookup values if needed.
@@ -205,7 +226,9 @@ def resolve_value(value, table, memory):
     if value.startswith("#"):
         return memory.get(value, 0)  # Return stored value or 0 if not present
 
-    # Case 2: Named constant like "const_100" → 100.0
+    # Case 2: Named constant like "const_100" → 100.0 or "const_m1" → -1.0
+    elif value == "const_m1":
+        return -1.0  # Special case for const_m1
     elif value.startswith("const_"):
         try:
             return float(
@@ -216,6 +239,13 @@ def resolve_value(value, table, memory):
     # Case 3: Raw numeric string (e.g., "75.95", "-100")
     elif value.replace(".", "", 1).replace("-", "", 1).isdigit():
         return float(value)
+
+    # Case 4: Handle percentages (e.g., "4.02%" → 0.0402)
+    elif value.endswith("%"):
+        try:
+            return float(value[:-1]) / 100  # Remove "%" and convert to float
+        except ValueError:
+            raise ValueError(f"Invalid percentage value: {value}")
 
     elif value.startswith("table"):
         try:
@@ -270,7 +300,11 @@ def execute_program(program, table):
         result = eval_expr(step, table, memory)  # Evaluate each expression
         memory[f"#{i}"] = result  # Store result in memory with key like '#0'
 
-    return round(result, 5)  # Return the final result
+    # Return the final result as float if numeric, else string (e.g., "yes"/"no")
+    if isinstance(result, float):
+        return round(result, 5)
+    else:
+        return result
 
 
 def test_executor(url):
