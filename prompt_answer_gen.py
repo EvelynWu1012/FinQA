@@ -7,7 +7,7 @@ import openai
 import json
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-from langchain.llms import OpenAI
+from langchain_community.llms import OpenAI
 from langchain.agents import initialize_agent, Tool
 from langchain.agents import AgentType
 
