@@ -1,74 +1,221 @@
-"""
-1. Load and Preprocess JSON Data
-2. Split Documents and Embed
-3. Use a Vector Store (FAISS) for Retrieval
-4. Use LangChain's RAG + ReAct agent to run reasoning over context
-5. Answer the question using GPT-3.5
-"""
-
 import json
-from typing import List, Dict, Any
-from langchain.schema import Document
+import os
+import zipfile
+from typing import Dict, List
+import requests
+import openai
+import json
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
+from langchain.llms import OpenAI
+from langchain.agents import initialize_agent, Tool
+from langchain.agents import AgentType
+
+# Global variable to hold the max_samples value
+MAX_SAMPLES = 3037
 
 
-def build_documents_from_json(url: str, zip_file_path: str = "data.zip",
-                              extract_to: str = "data",
-                              json_file: str = "train.json") -> List[Document]:
-    # Import inside function to prevent immediate execution when module is imported
-    from executor import load_data
+# =============================================================================
+# Step 1: Preprocess Examples
+# =============================================================================
+def load_data(url: str, zip_file_path: str = "data.zip",
+              extract_to: str = "data", json_file: str = "train.json"):
+    """
+    Downloads a zip file from the given URL, extracts it, and loads the
+    specified JSON file.
 
-    data = load_data(url, zip_file_path, extract_to, json_file)
-    if isinstance(data, dict):
-        data = [data]
+    Args:
+    - url (str): URL to download the zip file from.
+    - zip_file_path (str): Path where the zip file will be saved.
+    - extract_to (str): Directory to extract the contents of the zip file.
+    - json_file (str): The name of the JSON file to load from the extracted
+    folder.
 
-    documents = []
+    Returns:
+    - data (dict): The data loaded from the specified JSON file.
+    """
+    # 1. Download the zip file
+    print(f"Downloading {zip_file_path} from {url}...")
+    # Send a GET request to the provided URL
+    response = requests.get(url)
+    # Open the specified path to save the zip file in write-binary mode.
+    with open(zip_file_path, "wb") as f:
+        # Write the content of the response(the downloaded zip file) to the
+        # local file
+        f.write(response.content)
+    print(f"Download complete: {zip_file_path}")
 
-    for entry in data:
-        # Handle pre_text and post_text properly
-        pre_text = 'PRE_TEXT: ' + '\n'.join(
-            entry.get('pre_text', [])) if entry.get('pre_text') else ''
-        post_text = 'POST_TEXT: ' + '\n'.join(
-            entry.get('post_text', [])) if entry.get('post_text') else ''
-        text = f"{pre_text}\n{post_text}" if pre_text or post_text else ''
+    # 2. Unzip the file
+    print(f"Unzipping {zip_file_path} into {extract_to}...")
+    # Open the zip file in read mode
+    with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
+        # Extract all the contents of the zip file into the specified directory
+        zip_ref.extractall(extract_to)
+    print(f"Unzip complete. Files extracted to: {extract_to}")
 
-        table_data = '\n'.join(
-            [" | ".join(row) for row in entry.get("table", [])])
-        full_text = f"{text}\nTable:\n{table_data}" if text or table_data else ''
+    # 3. Load the JSON file
+    # Create the full path to the JSON file inside the extracted folder
+    json_path = os.path.join(extract_to, "data", json_file)
+    print(f"Loading JSON data from {json_path}...")
+    with open(json_path, "r") as f:  # Open the JSON file in read mode
+        # Load and parse the JSON data from the file into a Python dict
+        data = json.load(f)
+    print(f"Loaded {len(data)} examples from {json_file}.")
 
-        # Add QA section
-        qa = entry.get("qa", {})
-        if qa:
-            full_text += f"\n\nQuestion: {qa.get('question', '')}\nAnswer: {qa.get('answer', '')}"
-            steps = qa.get('steps', [])
-            for step in steps:
-                full_text += f"\n{step['op']}({step['arg1']}, {step['arg2']}) = {step['res']}"
+    return data
 
-        # Add annotations with full content
-        annotation = entry.get("annotation", {})
-        if annotation:
-            if "step_list" in annotation:
-                full_text += "\n\nStep-by-step:\n" + '\n'.join(
-                    annotation["step_list"])
-            for key in ["answer_list", "dialogue_break", "turn_program_ori",
-                        "dialogue_break_ori", "turn_program", "qa_split",
-                        "exe_ans_list"]:
-                if key in annotation:
-                    full_text += f"\n\n{key}:\n{json.dumps(annotation[key], indent=2)}"
 
-        metadata = {
-            "source": entry.get("filename", "unknown"),
-            "question": qa.get('question', ''),
-            "ops": [s["op"] for s in qa.get("steps", [])] if qa.get(
-                "steps") else [],
+def preprocess_example(example: Dict) -> Dict:
+    """
+    For a single example, return a dictionary with the question as the key and
+    associated metadata as the value.
+    """
+    # Find the first 'qa' variant key (e.g., 'qa', 'qa_0', 'qa_1', etc.)
+    qa_key = next((key for key in example.keys() if key.startswith("qa")),
+                  None)
+
+    if not qa_key:
+        raise KeyError("No 'qa' key found in the example.")
+
+    # Extract information from the found 'qa' key
+    question = example[qa_key]["question"]
+    table = example["table"]
+    table_header = table[0]
+    ann_table_rows = example[qa_key].get("ann_table_rows", [])
+
+    # Extract just the annotated rows for simplicity
+    focused_rows_header = [table_header] + [table[i] for i in ann_table_rows]
+
+    return {
+        question: {
+            "table": table,
+            "focused_rows": focused_rows_header,
+            "steps": example[qa_key].get("steps", []),
+            "program": example[qa_key].get("program", ""),
+            "exe_ans": example[qa_key].get("exe_ans"),
+            "answer": example[qa_key].get("answer"),
         }
+    }
 
-        documents.append(Document(page_content=full_text, metadata=metadata))
 
-    return documents
+def preprocess_dataset(data: List[Dict], max_samples) -> Dict:
+    """
+    Preprocess the entire dataset and return a dictionary where each key is
+    a question
+    and the corresponding value is the associated metadata.
+
+    Args:
+    - data (List[Dict]): The list of data examples.
+    - max_samples (int): The maximum number of samples to process.
+
+    Returns:
+    - Dict: A dictionary with questions as keys and their corresponding
+    metadata as values.
+    """
+    # Initialize an empty dictionary to hold the results
+    processed_data = {}
+
+    # Process each example
+    for example in data[:max_samples]:
+        # Get the preprocessed data for the example
+        example_data = preprocess_example(example)
+
+        # Since the key in the result is the question, we'll update the main
+        # dictionary with the question as key
+        processed_data.update(example_data)
+
+    return processed_data
+
+
+# =============================================================================
+# Step 2: Create Prompt Template
+# =============================================================================
+# Initialize OpenAI API Key
+openai.api_key = "your-openai-api-key"  # Replace with your OpenAI API key
+
+
+# Define a function for querying the processed data
+def query_data(question: str, processed_data: Dict) -> str:
+    """
+    Given a question, return the associated context from the preprocessed data.
+    """
+    return processed_data.get(question, "Data for this question not found.")
+
+
+# Step 3: Create a LangChain Prompt Template
+# Define a prompt template to generate an answer or code based on the
+# question and context.
+prompt_template = """
+You are a helpful assistant capable of reasoning through data. Given a 
+question about an investment or finance,
+and the associated data from a table, answer the question or generate a 
+program to solve it.
+
+Here is the question:
+{question}
+
+Here is the data:
+{data}
+
+Please provide the answer or the program:
+"""
+# Initialize the LangChain PromptTemplate
+template = PromptTemplate(input_variables=["question", "data"],
+                          template=prompt_template)
+
+# =============================================================================
+# Step 3: Initialize the LLM
+# =============================================================================
+# Initialize the OpenAI LLM (GPT-4)
+llm = OpenAI(model="gpt-4")
+
+# Initialize the LangChain LLMChain
+llm_chain = LLMChain(prompt=template, llm=llm)
+
+# Step 4: Set up the ReAct Agent (with reasoning and tool)
+tools = [
+    Tool(
+        name="Preprocessed Data Query",
+        func=lambda question: query_data(question, processed),
+        description="This tool allows querying the preprocessed dataset "
+                    "based on the question."
+    )
+]
+
+agent = initialize_agent(
+    tools,
+    llm,
+    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    verbose=True
+)
+
+
+# =============================================================================
+# Step 4: Generate Output
+# ============================================================================
+def generate_output(question: str, processed_data: Dict):
+    """
+    This function generates a response using the LangChain agent.
+    It takes a question and the processed data as input.
+    """
+    result = agent.run(question)
+    return result
 
 
 if __name__ == "__main__":
     # This block will only run when executing this script directly
     url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
-    documents = build_documents_from_json(url)
-    print(documents[0])
+    data = load_data(url)
+    processed = preprocess_dataset(data, MAX_SAMPLES)
+
+    # example = data[3000]  # Get the first example
+    # print(preprocess_example(example))
+    # Print out the preprocessed data for a specific question
+    question_text = ("what is the roi of an investment in ups in 2004 and "
+                     "sold in 2006?")
+    result = processed.get(question_text)
+
+    if result:
+        print("Found the question in the dataset:", result)
+    else:
+        print("Question not found in the dataset.")
