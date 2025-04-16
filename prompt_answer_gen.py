@@ -1,4 +1,5 @@
 import json
+import random
 from dotenv import load_dotenv
 import os
 import zipfile
@@ -6,8 +7,7 @@ from typing import Dict, List
 import requests
 import openai
 import json
-
-# from langchain_community.llms import OpenAI old
+from utils import clean_text, format_table, construct_chain_of_thought
 
 
 # Global variable to hold the max_samples value
@@ -85,29 +85,22 @@ def preprocess_example(example: Dict) -> Dict:
     for qa_key in qa_keys:
         question = example[qa_key]["question"]
         table = example["table"]
-        table_header = table[0]
         ann_table_rows = example[qa_key].get("ann_table_rows", [])
-
-        # Extract just the annotated rows for simplicity
-        focused_rows_header = [table_header] + [table[i] for i in
-                                                ann_table_rows]
+        ann_text_rows = example[qa_key].get("ann_text_rows", [])
         # Get annotation-related fields
         annotation = example[qa_key].get("annotation", {})
 
         processed_data[question] = {
+            "question": question,
             "table": table,
-            "focused_rows": focused_rows_header,
+            "focused_table_row": ann_table_rows,
+            "focused_text_row": ann_text_rows,
             "steps": example[qa_key].get("steps", []),
             "program": example[qa_key].get("program", ""),
             "exe_ans": example[qa_key].get("exe_ans"),
             "answer": example[qa_key].get("answer"),
             "pre_text": pre_text,
             "post_text": post_text,
-            "step_list": annotation.get("step_list", []),
-            "answer_list": annotation.get("answer_list", []),
-            "dialogue_break": annotation.get("dialogue_break", []),
-            "turn_program": annotation.get("turn_program", []),
-            "exe_ans_list": annotation.get("exe_ans_list", []),
         }
 
     return processed_data
@@ -141,7 +134,6 @@ def preprocess_dataset(data: List[Dict], max_samples) -> Dict:
 
     return processed_data
 
-
 # =============================================================================
 # Step 2: Set up LangChain Prompt Template
 # =============================================================================
@@ -165,46 +157,71 @@ def query_data(question: str, processed_data: Dict) -> str:
 # Step 3: Create a LangChain Prompt Template
 # Define a prompt template to generate an answer or code based on the
 # question and context.
-def format_prompt(question: str, context: Dict) -> str:
-    """
-    Formats a prompt by using context retrieved from the processed data.
-    The prompt incorporates table information, focused rows, steps, and exe_ans.
-    """
+def generate_few_shot_prompt(processed_data, user_question, context, n=3,):
+    all_questions = list(processed_data.keys())
+    selected_questions = random.sample(all_questions, n)
+
+    examples = []
+    for idx, example_question in enumerate(selected_questions):
+        data = processed_data[example_question]
+        table = format_table(data["table"])
+        reasoning_steps = construct_chain_of_thought(data)
+        output = f"Program: {data.get('program')}\nAnswer: {data.get('answer')}"
+
+        example_prompt = f"""
+Example: {idx + 1}
+Question: {example_question}
+Pre-context: 
+{data.get("pre_text", "")}
+
+Table: 
+{table}
+
+Post-context: 
+{data.get("post_text", "")}
+
+Let's think step by step:
+{reasoning_steps}
+
+Output: 
+{output}
+"""
+        examples.append(example_prompt.strip())
+
     if "error" in context:
         return context["error"]
+    user_question_pre_text = context["pre_text"]
+    user_question_table = format_table(context["table"])
+    user_question_post_text = context["post_text"]
+    question_prompt = f""" Questions
 
-    table_str = "\n".join(
-        [", ".join(map(str, row)) for row in context["table"]])
-    # Convert each step (a dict) to a formatted string using json.dumps
-    # steps_str = "\n".join(
-    # [json.dumps(step, indent=2) for step in context["steps"]]) if context[
-    # "steps"] else "N/A"
-
-    prompt = f""" **Financial QA System Instructions**
-    
-    You are a helpful financial analysis assistant. Using the 
-    table and reasoning details below, please write a Python-style program 
-    that calculates the answer to the question and then provides the final 
-    answer.
-
-1. Analyze this question:
-{question}
-2. Use this table data: (focused rows):
-{table_str}
+       You are a helpful financial analysis assistant. Using the 
+       table and reasoning details below, please write a Python-style program 
+       that calculates the answer to the question and then provides the final 
+       answer.
+       
+       1. Analyze this question: {user_question}
+2. Use this table and text data:
+Pre_text: 
+{user_question_pre_text}
+Table: 
+{user_question_table}
+Post_text:
+{user_question_post_text} 
 3. Reasoning Steps:
-
+Use the examples above
 4. Please output:
-- Program: function-style operations for example such as "multiply(2.12, const_1000), add(#0, 112)"
+- Program: function-style operations or function call expressions
 - Answer: Just the final value as string with max.2 digits decimal
 - Confidence: 0-100% certainty 
-
 **Example Output Format:**
 Program: such as "multiply(2.12, const_1000), add(#0, 112)"
 Answer: such as "5.2", "-4.9%", "8.92%", "$ 378.7 million", "2232"
 Confidence: 92%
-"""
-    return prompt.strip()
+       """
 
+    final_prompt = "\n\n---\n\n".join(examples) + "\n\n---\n\n" + question_prompt
+    return final_prompt
 
 # =============================================================================
 # Step 3: Initialize the LLM
@@ -235,32 +252,38 @@ def query_gpt(prompt: str) -> str:
 if __name__ == "__main__":
     # Define the question for which we want to retrieve context and generate
     # an answer.
-    question_text = ("what is the yearly interest expense incurred from term a loan , ( in millions ) ?")
+    question_text = ("what is the percentage change in standardized rwas in 2014?")
 
     # Download and load data
     url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
     data = load_data(url)
 
     # Preprocess the dataset (limiting to a number of samples)
-    processed = preprocess_dataset(data, max_samples=3037)
+    processed = preprocess_dataset(data, max_samples=100)
 
     # Retrieve context for the given question
     context = query_data(question_text, processed)
-    print("context", context)
-
-    # Format the prompt using the retrieved context
-    prompt = format_prompt(question_text, context)
-    print("prompt", prompt)
+    # print("context", context)
 
     # Display the prompt for debugging/inspection
     print("------ Prompt Sent to GPT ------\n")
-    print(prompt)
+    few_shot_prompt = generate_few_shot_prompt(processed, question_text, context, n=3)
+    print(few_shot_prompt)
+
+
+
+    # Format the prompt using the retrieved context
+    # prompt = format_prompt(question_text, context)
+    # print("prompt", prompt)
+
+
+    # print(prompt)
     print("\n------ GPT-3.5 Response ------\n")
 
     # Send the prompt to GPT-3.5 and print the response
-    response = query_gpt(prompt)
-    print(response)
+    # response = query_gpt(prompt)
+    # print(response)
 
     print("\n------ Ground Truth ------")
-    print("Expected Program:", context.get("program"))
-    print("Expected Answer:", context.get("answer"))
+    # print("Expected Program:", context.get("program"))
+    # print("Expected Answer:", context.get("answer"))
