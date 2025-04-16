@@ -74,24 +74,26 @@ def preprocess_example(example: Dict) -> Dict:
     For a single example, return a dictionary with the question as the key and
     associated metadata as the value.
     """
-    # Find the first 'qa' variant key (e.g., 'qa', 'qa_0', 'qa_1', etc.)
-    qa_key = next((key for key in example.keys() if key.startswith("qa")),
-                  None)
+    processed_data = {}
 
-    if not qa_key:
+    # Find ALL 'qa' keys (e.g., 'qa_0', 'qa_1', etc.)
+    qa_keys = [key for key in example.keys() if key.startswith("qa")]
+
+    if not qa_keys:
         raise KeyError("No 'qa' key found in the example.")
 
-    # Extract information from the found 'qa' key
-    question = example[qa_key]["question"]
-    table = example["table"]
-    table_header = table[0]
-    ann_table_rows = example[qa_key].get("ann_table_rows", [])
+    # Process each QA pair
+    for qa_key in qa_keys:
+        question = example[qa_key]["question"]
+        table = example["table"]
+        table_header = table[0]
+        ann_table_rows = example[qa_key].get("ann_table_rows", [])
 
-    # Extract just the annotated rows for simplicity
-    focused_rows_header = [table_header] + [table[i] for i in ann_table_rows]
+        # Extract just the annotated rows for simplicity
+        focused_rows_header = [table_header] + [table[i] for i in
+                                                ann_table_rows]
 
-    return {
-        question: {
+        processed_data[question] = {
             "table": table,
             "focused_rows": focused_rows_header,
             "steps": example[qa_key].get("steps", []),
@@ -99,7 +101,8 @@ def preprocess_example(example: Dict) -> Dict:
             "exe_ans": example[qa_key].get("exe_ans"),
             "answer": example[qa_key].get("answer"),
         }
-    }
+
+    return processed_data
 
 
 def preprocess_dataset(data: List[Dict], max_samples) -> Dict:
@@ -137,7 +140,9 @@ def preprocess_dataset(data: List[Dict], max_samples) -> Dict:
 # Initialize OpenAI API Key
 load_dotenv()  # This loads variables from .env into the environment
 openai.api_key = os.getenv("OPENAI_API_KEY")
-print(f"Loaded API key: {openai.api_key[:5]}...")  # Don’t print the full key!
+
+
+# print(f"Loaded API key: {openai.api_key[:5]}...")  # Don’t print the full key!
 
 
 # Define a function for querying the processed data
@@ -160,31 +165,35 @@ def format_prompt(question: str, context: Dict) -> str:
     if "error" in context:
         return context["error"]
 
-    table_str = "\n".join([", ".join(map(str, row)) for row in context["focused_rows"]])
+    table_str = "\n".join(
+        [", ".join(map(str, row)) for row in context["focused_rows"]])
     # Convert each step (a dict) to a formatted string using json.dumps
-    steps_str = "\n".join([json.dumps(step, indent=2) for step in context["steps"]]) if context["steps"] else "N/A"
-    exe_ans_str = json.dumps(context["exe_ans"], indent=2) if context["exe_ans"] else "N/A"
+    steps_str = "\n".join(
+        [json.dumps(step, indent=2) for step in context["steps"]]) if context[
+        "steps"] else "N/A"
 
-    prompt = f""" You are a helpful financial analysis assistant. Using the 
+    prompt = f""" **Financial QA System Instructions**
+    
+    You are a helpful financial analysis assistant. Using the 
     table and reasoning details below, please write a Python-style program 
     that calculates the answer to the question and then provides the final 
     answer.
 
-Question:
+1. Analyze this question:
 {question}
-
-Table (focused rows):
+2. Use this table data: (focused rows):
 {table_str}
-
-Reasoning Steps:
+3. Reasoning Steps:
 {steps_str}
+4. Please output:
+- Program: function-style operations or function call expressions
+- Answer: Just the final value as string with max.2 digits decimal
+- Confidence: 0-100% certainty 
 
-Executable Answer (intermediate computation values):
-{exe_ans_str}
-
-Please output:
-1. A Python-style program that processes the data to answer the question.
-2. The final answer.
+**Example Output Format:**
+Program: such as "multiply(2.12, const_1000), add(#0, 112)"
+Answer: such as "5.2", "-4.9%", "8.92%", "$ 378.7 million", "2232"
+Confidence: 92%
 """
     return prompt.strip()
 
@@ -210,22 +219,24 @@ def query_gpt(prompt: str) -> str:
     return response.choices[0].message.content.strip()
 
 
+
 # =============================================================================
 # Step 4: Generate Output
 # ============================================================================
 
 
-
 if __name__ == "__main__":
     # Define the question for which we want to retrieve context and generate
     # an answer.
-    question_text = ("what was the percent of the growth in the revenues from 2007 to 2008")
+    question_text = ("for commercial mortgage recourse obligations , what "
+                     "was average reserve adjustments net for 2010 and 2011 "
+                     ", in millions?")
 
     # Download and load data
     url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
     data = load_data(url)
 
-    # Preprocess the dataset (limiting to a number of samples; adjust as needed)
+    # Preprocess the dataset (limiting to a number of samples)
     processed = preprocess_dataset(data, max_samples=3037)
 
     # Retrieve context for the given question
@@ -244,14 +255,8 @@ if __name__ == "__main__":
     # Send the prompt to GPT-3.5 and print the response
     response = query_gpt(prompt)
     print(response)
-    # example = data[3000]  # Get the first example
-    # print(preprocess_example(example))
-    # Print out the preprocessed data for a specific question
-    # question_text = ("what is the roi of an investment in ups in 2004 and "
-    # "sold in 2006?")
-    # result = processed.get(question_text)
 
-    # if result:
-    # print("Found the question in the dataset:", result)
-    # else:
-    # print("Question not found in the dataset.")
+    print("\n------ Ground Truth ------")
+    print("Expected Program:", context.get("program"))
+    print("Expected Answer:", context.get("answer"))
+
