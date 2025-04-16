@@ -6,8 +6,6 @@ from typing import Dict, List
 import requests
 import openai
 import json
-from openai import ChatCompletion
-
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -145,113 +143,91 @@ def query_data(question: str, processed_data: Dict) -> str:
     """
     Given a question, return the associated context from the preprocessed data.
     """
-    return processed_data.get(question,
-                              {"error": "Data for this question not found."})
+    return processed_data.get(question, "Data for this question not found.")
 
 
 # Step 3: Create a LangChain Prompt Template
 # Define a prompt template to generate an answer or code based on the
 # question and context.
-def format_prompt(question: str, context: Dict) -> str:
+prompt_template = PromptTemplate(
+    input_variables=["question", "data"],
+    template="""
+    You are a helpful assistant capable of reasoning through data. Given a 
+    question about an investment or finance,
+    and the associated data from a table, answer the question or generate a 
+    program to solve it.
+
+    Here is the question:
+    {question}
+
+    Here is the data:
+    {data}
+
+    Please provide the answer or the program:
     """
-    Formats a prompt by using context retrieved from the processed data.
-    The prompt incorporates table information, focused rows, steps, and exe_ans.
-    """
-    if "error" in context:
-        return context["error"]
-
-    table_str = "\n".join([", ".join(map(str, row)) for row in context["focused_rows"]])
-    # Convert each step (a dict) to a formatted string using json.dumps
-    steps_str = "\n".join([json.dumps(step, indent=2) for step in context["steps"]]) if context["steps"] else "N/A"
-    exe_ans_str = json.dumps(context["exe_ans"], indent=2) if context["exe_ans"] else "N/A"
-
-    prompt = f""" You are a helpful financial analysis assistant. Using the 
-    table and reasoning details below, please write a Python-style program 
-    that calculates the answer to the question and then provides the final 
-    answer.
-
-Question:
-{question}
-
-Table (focused rows):
-{table_str}
-
-Reasoning Steps:
-{steps_str}
-
-Executable Answer (intermediate computation values):
-{exe_ans_str}
-
-Please output:
-1. A Python-style program that processes the data to answer the question.
-2. The final answer.
-"""
-    return prompt.strip()
-
+)
 
 # =============================================================================
 # Step 3: Initialize the LLM
 # =============================================================================
-def query_gpt(prompt: str) -> str:
-    """
-        Sends a prompt to the GPT-3.5-turbo model and returns the generated response.
-        """
-    client = openai.OpenAI()  # Create a client instance
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system",
-             "content": "You are a helpful financial analysis assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.3
-    )
-    return response.choices[0].message.content.strip()
+# Initialize the OpenAI LLM (GPT-4)
+# llm = OpenAI(model="gpt-3.5-turbo")
+llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+# New-style chain using RunnableSequence
+chain = prompt_template | llm | StrOutputParser()
 
 
 # =============================================================================
 # Step 4: Generate Output
 # ============================================================================
-
+def generate_output(question: str, processed_data: Dict):
+    """
+    This function generates a response using the LangChain agent.
+    It takes a question and the processed data as input.
+    """
+    result = agent.invoke(question)
+    return result
 
 
 if __name__ == "__main__":
-    # Define the question for which we want to retrieve context and generate
-    # an answer.
-    question_text = ("what was the percent of the growth in the revenues from 2007 to 2008")
-
-    # Download and load data
+    # This block will only run when executing this script directly
     url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
     data = load_data(url)
+    processed = preprocess_dataset(data, 1)
+    print("Processed Data:", processed)
+    # Step 2: Set up tools using the processed data
+    tools = [
+        Tool(
+            name="Preprocessed Data Query",
+            func=lambda question: query_data(question, processed),
+            description="This tool allows querying the preprocessed dataset based on the question."
+        )
+    ]
 
-    # Preprocess the dataset (limiting to a number of samples; adjust as needed)
-    processed = preprocess_dataset(data, max_samples=3037)
+    # Step 3: Initialize the agent
+    agent = initialize_agent(
+        tools,
+        llm,
+        agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True
+    )
 
-    # Retrieve context for the given question
-    context = query_data(question_text, processed)
-    print("context", context)
+    # Step 4: Ask a question
+    question_text = "what was the percentage change in the net cash from operating activities from 2008 to 2009"
+    print("Asking question:", question_text)
+    print("Processed Data for this question:", processed.get(question_text))
+    print("Tools available to the agent:", tools)
+    print("Agent plan:")
+    print("Answer:", agent.invoke(question_text))
 
-    # Format the prompt using the retrieved context
-    prompt = format_prompt(question_text, context)
-    print("prompt", prompt)
-
-    # Display the prompt for debugging/inspection
-    print("------ Prompt Sent to GPT ------\n")
-    print(prompt)
-    print("\n------ GPT-3.5 Response ------\n")
-
-    # Send the prompt to GPT-3.5 and print the response
-    response = query_gpt(prompt)
-    print(response)
     # example = data[3000]  # Get the first example
     # print(preprocess_example(example))
     # Print out the preprocessed data for a specific question
-    # question_text = ("what is the roi of an investment in ups in 2004 and "
-    # "sold in 2006?")
-    # result = processed.get(question_text)
+    #question_text = ("what is the roi of an investment in ups in 2004 and "
+                     #"sold in 2006?")
+    #result = processed.get(question_text)
 
-    # if result:
-    # print("Found the question in the dataset:", result)
-    # else:
-    # print("Question not found in the dataset.")
+    #if result:
+        #print("Found the question in the dataset:", result)
+    #else:
+        #print("Question not found in the dataset.")
