@@ -82,6 +82,10 @@ def preprocess_example(example: Dict) -> Dict:
     if not qa_keys:
         raise KeyError("No 'qa' key found in the example.")
 
+    # Get pre_text and post_text from the example
+    pre_text = example.get("pre_text", "")
+    post_text = example.get("post_text", "")
+
     # Process each QA pair
     for qa_key in qa_keys:
         question = example[qa_key]["question"]
@@ -92,6 +96,8 @@ def preprocess_example(example: Dict) -> Dict:
         # Extract just the annotated rows for simplicity
         focused_rows_header = [table_header] + [table[i] for i in
                                                 ann_table_rows]
+        # Get annotation-related fields
+        annotation = example[qa_key].get("annotation", {})
 
         processed_data[question] = {
             "table": table,
@@ -100,6 +106,13 @@ def preprocess_example(example: Dict) -> Dict:
             "program": example[qa_key].get("program", ""),
             "exe_ans": example[qa_key].get("exe_ans"),
             "answer": example[qa_key].get("answer"),
+            "pre_text": pre_text,
+            "post_text": post_text,
+            "step_list": annotation.get("step_list", []),
+            "answer_list": annotation.get("answer_list", []),
+            "dialogue_break": annotation.get("dialogue_break", []),
+            "turn_program": annotation.get("turn_program", []),
+            "exe_ans_list": annotation.get("exe_ans_list", []),
         }
 
     return processed_data
@@ -166,11 +179,11 @@ def format_prompt(question: str, context: Dict) -> str:
         return context["error"]
 
     table_str = "\n".join(
-        [", ".join(map(str, row)) for row in context["focused_rows"]])
+        [", ".join(map(str, row)) for row in context["table"]])
     # Convert each step (a dict) to a formatted string using json.dumps
-    steps_str = "\n".join(
-        [json.dumps(step, indent=2) for step in context["steps"]]) if context[
-        "steps"] else "N/A"
+    # steps_str = "\n".join(
+    # [json.dumps(step, indent=2) for step in context["steps"]]) if context[
+    # "steps"] else "N/A"
 
     prompt = f""" **Financial QA System Instructions**
     
@@ -184,9 +197,9 @@ def format_prompt(question: str, context: Dict) -> str:
 2. Use this table data: (focused rows):
 {table_str}
 3. Reasoning Steps:
-{steps_str}
+
 4. Please output:
-- Program: function-style operations or function call expressions
+- Program: function-style operations for example such as "multiply(2.12, const_1000), add(#0, 112)"
 - Answer: Just the final value as string with max.2 digits decimal
 - Confidence: 0-100% certainty 
 
@@ -219,7 +232,6 @@ def query_gpt(prompt: str) -> str:
     return response.choices[0].message.content.strip()
 
 
-
 # =============================================================================
 # Step 4: Generate Output
 # ============================================================================
@@ -228,9 +240,7 @@ def query_gpt(prompt: str) -> str:
 if __name__ == "__main__":
     # Define the question for which we want to retrieve context and generate
     # an answer.
-    question_text = ("for commercial mortgage recourse obligations , what "
-                     "was average reserve adjustments net for 2010 and 2011 "
-                     ", in millions?")
+    question_text = ("what is the yearly interest expense incurred from term a loan , ( in millions ) ?")
 
     # Download and load data
     url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
@@ -259,4 +269,3 @@ if __name__ == "__main__":
     print("\n------ Ground Truth ------")
     print("Expected Program:", context.get("program"))
     print("Expected Answer:", context.get("answer"))
-
