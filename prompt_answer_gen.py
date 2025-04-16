@@ -6,14 +6,9 @@ from typing import Dict, List
 import requests
 import openai
 import json
-from openai import ChatCompletion
 
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 # from langchain_community.llms import OpenAI old
-from langchain_openai import ChatOpenAI
-from langchain.agents import initialize_agent, Tool, AgentType
+
 
 # Global variable to hold the max_samples value
 MAX_SAMPLES = 3037
