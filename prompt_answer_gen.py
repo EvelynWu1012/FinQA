@@ -1,4 +1,5 @@
 import json
+from dotenv import load_dotenv
 import os
 import zipfile
 from typing import Dict, List
@@ -7,9 +8,10 @@ import openai
 import json
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-from langchain_community.llms import OpenAI
-from langchain.agents import initialize_agent, Tool
-from langchain.agents import AgentType
+from langchain_core.output_parsers import StrOutputParser
+# from langchain_community.llms import OpenAI old
+from langchain_openai import ChatOpenAI
+from langchain.agents import initialize_agent, Tool, AgentType
 
 # Global variable to hold the max_samples value
 MAX_SAMPLES = 3037
@@ -128,10 +130,12 @@ def preprocess_dataset(data: List[Dict], max_samples) -> Dict:
 
 
 # =============================================================================
-# Step 2: Create Prompt Template
+# Step 2: Set up LangChain Prompt Template
 # =============================================================================
 # Initialize OpenAI API Key
-openai.api_key = "your-openai-api-key"  # Replace with your OpenAI API key
+load_dotenv()  # This loads variables from .env into the environment
+openai.api_key = os.getenv("OPENAI_API_KEY")
+print(f"Loaded API key: {openai.api_key[:5]}...")  # Don’t print the full key!
 
 
 # Define a function for querying the processed data
@@ -145,49 +149,32 @@ def query_data(question: str, processed_data: Dict) -> str:
 # Step 3: Create a LangChain Prompt Template
 # Define a prompt template to generate an answer or code based on the
 # question and context.
-prompt_template = """
-You are a helpful assistant capable of reasoning through data. Given a 
-question about an investment or finance,
-and the associated data from a table, answer the question or generate a 
-program to solve it.
+prompt_template = PromptTemplate(
+    input_variables=["question", "data"],
+    template="""
+    You are a helpful assistant capable of reasoning through data. Given a 
+    question about an investment or finance,
+    and the associated data from a table, answer the question or generate a 
+    program to solve it.
 
-Here is the question:
-{question}
+    Here is the question:
+    {question}
 
-Here is the data:
-{data}
+    Here is the data:
+    {data}
 
-Please provide the answer or the program:
-"""
-# Initialize the LangChain PromptTemplate
-template = PromptTemplate(input_variables=["question", "data"],
-                          template=prompt_template)
+    Please provide the answer or the program:
+    """
+)
 
 # =============================================================================
 # Step 3: Initialize the LLM
 # =============================================================================
 # Initialize the OpenAI LLM (GPT-4)
-llm = OpenAI(model="gpt-4")
-
-# Initialize the LangChain LLMChain
-llm_chain = LLMChain(prompt=template, llm=llm)
-
-# Step 4: Set up the ReAct Agent (with reasoning and tool)
-tools = [
-    Tool(
-        name="Preprocessed Data Query",
-        func=lambda question: query_data(question, processed),
-        description="This tool allows querying the preprocessed dataset "
-                    "based on the question."
-    )
-]
-
-agent = initialize_agent(
-    tools,
-    llm,
-    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True
-)
+# llm = OpenAI(model="gpt-3.5-turbo")
+llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+# New-style chain using RunnableSequence
+chain = prompt_template | llm | StrOutputParser()
 
 
 # =============================================================================
@@ -198,7 +185,7 @@ def generate_output(question: str, processed_data: Dict):
     This function generates a response using the LangChain agent.
     It takes a question and the processed data as input.
     """
-    result = agent.run(question)
+    result = agent.invoke(question)
     return result
 
 
@@ -206,16 +193,41 @@ if __name__ == "__main__":
     # This block will only run when executing this script directly
     url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
     data = load_data(url)
-    processed = preprocess_dataset(data, MAX_SAMPLES)
+    processed = preprocess_dataset(data, 1)
+    print("Processed Data:", processed)
+    # Step 2: Set up tools using the processed data
+    tools = [
+        Tool(
+            name="Preprocessed Data Query",
+            func=lambda question: query_data(question, processed),
+            description="This tool allows querying the preprocessed dataset based on the question."
+        )
+    ]
+
+    # Step 3: Initialize the agent
+    agent = initialize_agent(
+        tools,
+        llm,
+        agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        verbose=True
+    )
+
+    # Step 4: Ask a question
+    question_text = "what was the percentage change in the net cash from operating activities from 2008 to 2009"
+    print("Asking question:", question_text)
+    print("Processed Data for this question:", processed.get(question_text))
+    print("Tools available to the agent:", tools)
+    print("Agent plan:")
+    print("Answer:", agent.invoke(question_text))
 
     # example = data[3000]  # Get the first example
     # print(preprocess_example(example))
     # Print out the preprocessed data for a specific question
-    question_text = ("what is the roi of an investment in ups in 2004 and "
-                     "sold in 2006?")
-    result = processed.get(question_text)
+    #question_text = ("what is the roi of an investment in ups in 2004 and "
+                     #"sold in 2006?")
+    #result = processed.get(question_text)
 
-    if result:
-        print("Found the question in the dataset:", result)
-    else:
-        print("Question not found in the dataset.")
+    #if result:
+        #print("Found the question in the dataset:", result)
+    #else:
+        #print("Question not found in the dataset.")
