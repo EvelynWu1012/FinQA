@@ -1,87 +1,46 @@
-import json
-import os
+
 import re
-import zipfile
-import requests
-
-"""
-Step 1: Understand the Data Format. 
-"""
-
-
-def load_data(url: str, zip_file_path: str = "data.zip",
-              extract_to: str = "data", json_file: str = "train.json"):
-    """
-    Downloads a zip file from the given URL, extracts it, and loads the
-    specified JSON file.
-
-    Args:
-    - url (str): URL to download the zip file from.
-    - zip_file_path (str): Path where the zip file will be saved.
-    - extract_to (str): Directory to extract the contents of the zip file.
-    - json_file (str): The name of the JSON file to load from the extracted
-    folder.
-
-    Returns:
-    - data (dict): The data loaded from the specified JSON file.
-    """
-    # 1. Download the zip file
-    print(f"Downloading {zip_file_path} from {url}...")
-    # Send a GET request to the provided URL
-    response = requests.get(url)
-    # Open the specified path to save the zip file in write-binary mode.
-    with open(zip_file_path, "wb") as f:
-        # Write the content of the response(the downloaded zip file) to the
-        # local file
-        f.write(response.content)
-    print(f"Download complete: {zip_file_path}")
-
-    # 2. Unzip the file
-    print(f"Unzipping {zip_file_path} into {extract_to}...")
-    # Open the zip file in read mode
-    with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
-        # Extract all the contents of the zip file into the specified directory
-        zip_ref.extractall(extract_to)
-    print(f"Unzip complete. Files extracted to: {extract_to}")
-
-    # 3. Load the JSON file
-    # Create the full path to the JSON file inside the extracted folder
-    json_path = os.path.join(extract_to, "data", json_file)
-    print(f"Loading JSON data from {json_path}...")
-    with open(json_path, "r") as f:  # Open the JSON file in read mode
-        # Load and parse the JSON data from the file into a Python dict
-        data = json.load(f)
-    print(f"Loaded {len(data)} examples from {json_file}.")
-
-    return data
-
+from data_loader import download_data
+from preprocessor import preprocess_dataset
+import shared_data
 
 """
 Step 2: Table Parser Design. 
 """
 
-
 def parse_table(raw_table):
     """
-    Converts raw table data into a list of dictionaries where each row is
-    represented as a dictionary
-    :param raw_table
-    :return: dictionary e.g. [{"Year": "2021", "Revenue": "206588", "Cost":
-    "181001", "Profit": "25587"}]
+    Converts a raw table (nested list) into a dictionary where each key is
+    the first element of the row, and the value is a list of numbers (
+    converted from strings). Skips the first row of the table.
+
+    Example:
+    [['beginning of year', '405'],
+     ['revisions of previous estimates', '15']]
+    -->
+    {
+        'revisions of previous estimates': [15],
+        ...
+    }
     """
+    result = {}
 
-    headers = raw_table[0]
-    rows = raw_table[1:]
-    parsed = []
-    for row in rows:
-        # Pad the row if it's shorter than headers
-        if len(row) < len(headers):
-            row += [''] * (len(headers) - len(row))
-        # Truncate the row if it's longer than headers
-        row = row[:len(headers)]
-        parsed.append(dict(zip(headers, row)))
+    for row in raw_table[1:]:  # skip the first row
+        if not row:
+            continue
+        key = row[0]
+        values = []
+        for val in row[1:]:
+            # Clean up and convert to number
+            try:
+                num = float(val.strip().split()[0].replace(',', ''))
+                values.append(num)
+            except ValueError:
+                pass  # skip non-numeric values
+        result[key] = values
 
-    return parsed
+    return result
+
 
 
 """
@@ -96,7 +55,6 @@ def eval_expr(expression, table, memory):
 
     The expression can involve:
         - Constants (e.g., "const_100")
-        - Table references (e.g., "table[0][\"Revenue\"]")
         - Memory references (e.g., "#0", "#1") which are previously computed
         intermediate results.
 
@@ -187,116 +145,7 @@ def eval_expr(expression, table, memory):
         print(f"Intermediate: {expression} → {val1} > {val2} = {result}")
         return result
 
-    elif expression.startswith("table_average("):
-        try:
-            # Step 1: Extract the exact inner content with perfect space preservation
-            inner_content = expression[len("table_average("):-1]
-
-            # Step 2: Parse with absolute space preservation
-            if inner_content.lstrip().startswith(('"', "'")):
-                # Quoted identifier case
-                quote_char = inner_content.lstrip()[0]
-                quoted_part = inner_content.split(quote_char)[1]
-                row_identifier = quoted_part.split(quote_char)[0]
-                remaining = inner_content[
-                            len(quote_char) + len(row_identifier) + 2:].lstrip(
-                    ', ').strip()
-            else:
-                # Unquoted identifier case - preserve exact spacing
-                comma_pos = inner_content.find(',')
-                if comma_pos >= 0:
-                    row_identifier = inner_content[:comma_pos].strip()
-                    remaining = inner_content[comma_pos + 1:].strip()
-                else:
-                    row_identifier = inner_content.strip()
-                    remaining = "none"
-
-            none_value = remaining.split(',')[0].strip(
-                ' "\'') if remaining != "none" else "none"
-
-            # Step 3: Verify we have the exact original spacing
-            original_identifier = \
-            expression.split('(', 1)[1].split(')')[0].split(',')[0].strip()
-            if (original_identifier.startswith(('"', "'")) and
-                    original_identifier.endswith(('"', "'"))):
-                original_identifier = original_identifier[1:-1]
-
-            # Use the original spacing if different
-            if ' ' in original_identifier and original_identifier != row_identifier:
-                row_identifier = original_identifier
-
-            print(
-                f"debug: EXACT identifier: '{row_identifier}' (length: {len(row_identifier)})")
-
-            # Step 4: Flexible matching with multiple strategies
-            target_row = None
-            normalized_input = re.sub(r'[^a-z0-9 ]', '',
-                                      row_identifier.lower())
-
-            for row in table:
-                for key in row.keys():
-                    if key.strip().lower() in ['( in millions )',
-                                               'description', 'item', '']:
-                        table_value = row[key].strip()
-                        normalized_table = re.sub(r'[^a-z0-9 ]', '',
-                                                  table_value.lower())
-
-                        # Matching strategies in order of preference
-                        if (
-                                table_value.lower() == row_identifier.lower() or  # Exact match
-                                normalized_table == normalized_input or  # Punctuation normalized
-                                normalized_table.replace(" ",
-                                                         "") == normalized_input.replace(
-                            " ", "")):  # Space insensitive
-                            target_row = row
-                            break
-                if target_row:
-                    break
-
-            if not target_row:
-                print(f"debug: No match for '{row_identifier}'")
-                print("debug: Available identifiers:")
-                for i, row in enumerate(table):
-                    id_val = row.get('( in millions )', row.get('description',
-                                                                row.get('item',
-                                                                        '')))
-                    print(f"Row {i}: '{id_val}'")
-                return 0.0
-
-            # Step 5: Dynamic year handling with robust parsing
-            year_columns = [col for col in table[0].keys() if
-                            col.strip().isdigit() and len(col) == 4]
-            if not year_columns:  # Fallback if no year columns detected
-                year_columns = ["2011", "2010", "2009", "2008", "2007", "2006"]
-
-            values = []
-            for col in year_columns:
-                if col in target_row:
-                    try:
-                        val_str = target_row[col]
-                        # Handle all number formats: $1,000, (200), etc.
-                        val_str = val_str.replace('$', '').replace(',', '')
-                        if '(' in val_str and ')' in val_str:
-                            val_str = '-' + val_str.split('(')[1].split(')')[0]
-                        val = float(val_str.split()[0])
-                        values.append(val)
-                    except (ValueError, IndexError) as e:
-                        print(
-                            f"debug: Skipping invalid value '{target_row[col]}': {e}")
-                        continue
-
-            if values:
-                result = sum(values) / len(values)
-                result = round(result, 5)
-                print(
-                    f"debug: SUCCESS: average of '{row_identifier}' = {result}")
-                return result
-            return 0.0
-
-        except Exception as e:
-            print(f"debug: ERROR in table_average: {str(e)}")
-            return 0.0
-
+    # elif expression.startswith("table_average("):
 
     else:
         # If it's not a recognized operation, attempt to directly resolve it
@@ -305,7 +154,8 @@ def eval_expr(expression, table, memory):
         print(f"Intermediate: {expression} → Resolved to {result}")
         return result
 
-def resolve_value(value, table, memory):
+
+def resolve_value(value, memory):
     """
     Resolves the input `value` to a numerical float.
 
@@ -316,7 +166,6 @@ def resolve_value(value, table, memory):
     - Percentages (e.g., "4.02%" → 0.0402)
     Parameters:
         value (str | int | float): The value or reference to resolve.
-        table (list[dict]): A table of rows (dicts) to lookup values if needed.
         memory (dict): Dictionary storing intermediate computed values by
         keys like "#0", "#1".
 
@@ -358,14 +207,7 @@ def resolve_value(value, table, memory):
         except ValueError:
             raise ValueError(f"Invalid percentage value: {value}")
 
-    elif value.startswith("table"):
-        try:
-            parts = value[6:-1].split("][")
-            row_idx = int(parts[0])
-            column = parts[1].strip("\"")
-            return float(table[row_idx].get(column, 0))
-        except Exception as e:
-            raise ValueError(f"Invalid table reference: {value} → {e}")
+    ## elif to handle the table_avarage to extract column name
 
     else:
         raise ValueError(f"Unknown expression: {value}")
@@ -387,9 +229,6 @@ def execute_program(program, table):
                        Each expression may involve constants (e.g., const_100),
                        table references (e.g., table[0]["Revenue"]),
                        or memory references (e.g., #0).
-        table (List[Dict]): A list of dictionaries representing a table
-        structure
-                            (e.g., parsed from an HTML table or a CSV file).
 
     Returns:
         float: The result of the final expression in the program sequence.
@@ -411,19 +250,17 @@ def execute_program(program, table):
         result = eval_expr(step, table, memory)  # Evaluate each expression
         memory[f"#{i}"] = result  # Store result in memory with key like '#0'
 
-    # Return the final result as float if numeric, else string (e.g., "yes"/"no")
+    # Return the final result as float if numeric, else string (e.g.,
+    # "yes"/"no")
     if isinstance(result, float):
         return round(result, 5)
     else:
         return result
 
-
+"""
 def test_executor(url):
     """
-    Runs a test suite over the first few examples in the dataset to validate
-    the program executor.
-    Now handles examples with multiple QA pairs (qa_0, qa_1, etc.)
-    """
+"""
     # Load sample data from a JSON file
     data = load_data(url)
     success, total = 0, 0
@@ -504,3 +341,4 @@ def test_executor(url):
 url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
 # Call the test function
 test_executor(url)
+"""

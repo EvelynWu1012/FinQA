@@ -5,15 +5,24 @@ from typing import Dict
 
 def clean_text(text: str) -> str:
     """
-    Cleans input text by removing unwanted characters and extra spaces.
+    Cleans input text by removing all non-digit characters,
+    while preserving decimal points and minus signs.
+    If the text is 'yes' or 'no', returns the text unchanged.
 
     Args:
     - text (str): Input text to be cleaned.
 
     Returns:
-    - str: Cleaned text.
+    - str: Cleaned text containing only digits, decimal points, and minus
+    signs,
+           or the original text if it's 'yes' or 'no'.
     """
-    text = re.sub(r"\s+", " ", text.strip())
+    # Check if the text is 'yes' or 'no' and return it unchanged
+    if text.lower() in ['yes', 'no']:
+        return text.lower()
+
+    # Remove all non-digit characters except for decimal points and minus signs
+    text = re.sub(r"[^0-9.-]", "", text)
     return text
 
 
@@ -109,3 +118,25 @@ def extract_llm_response_components(llm_output):
         result['confidence'] = confidence_match.group(1).strip()
 
     return result
+
+
+def is_numeric(s):
+    """
+    Checks if a string can be converted to a number (integer, float, or scientific notation).
+
+    Args:
+        s (str): The string to be checked.
+
+    Returns:
+        bool: True if the string can be converted to a number, False otherwise.
+
+    Example:
+        can_be_converted_to_number("3.14") -> True
+        can_be_converted_to_number("-123") -> True
+        can_be_converted_to_number("abc") -> False
+    """
+    try:
+        float(s)  # Tries to convert the string to a float
+        return True
+    except ValueError:
+        return False

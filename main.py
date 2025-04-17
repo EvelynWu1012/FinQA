@@ -1,4 +1,4 @@
-from evaluation_metrics import evaluate_answer_match
+from evaluation_metrics import evaluate_exact_match
 from prompt_answer_gen_inference import load_and_preprocess_data
 
 url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
@@ -7,4 +7,4 @@ url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
 load_and_preprocess_data(url)
 
 # Then run evaluation
-evaluate_answer_match(url="your_data_url", num_samples=2)
+evaluate_exact_match(url=url, num_samples=3)

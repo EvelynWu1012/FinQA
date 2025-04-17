@@ -1,9 +1,9 @@
 import random
 from dotenv import load_dotenv
 import os
-from typing import Dict, List
+from typing import Dict
 import openai
-from utils import clean_text, format_table, construct_chain_of_thought
+from utils import format_table, construct_chain_of_thought
 from preprocessor import preprocess_dataset
 from data_loader import download_data
 import shared_data
@@ -12,16 +12,16 @@ import shared_data
 MAX_SAMPLES = 3037
 
 
-
 # =============================================================================
 # Step 1: Preprocess Examples
 # =============================================================================
-def load_and_preprocess_data(url: str, max_samples: int = None ) -> None:
+def load_and_preprocess_data(url: str, max_samples: int = None) -> None:
     """
     Load and preprocess the data only once at the beginning.
     Args:
         url: Data source URL
-        max_samples: Maximum samples to process (defaults to global MAX_SAMPLES)
+        max_samples: Maximum samples to process (defaults to global
+        MAX_SAMPLES)
     """
     # Use global MAX_SAMPLES if no override provided
     if max_samples is None:
@@ -33,13 +33,14 @@ def load_and_preprocess_data(url: str, max_samples: int = None ) -> None:
         print("Loading and preprocessing data...")
         data = download_data(url)
         shared_data.processed_dataset = preprocess_dataset(data, MAX_SAMPLES)
-        print(f"✅ After preprocessing: {len(shared_data.processed_dataset)} examples loaded.")
+        print(
+            f"✅ After preprocessing: {len(shared_data.processed_dataset)} "
+            f"examples loaded.")
         if len(shared_data.processed_dataset) == 0:
             print("❌ preprocess_dataset() returned an empty dictionary!")
         print("Data preprocessing complete.")
     else:
         print("Data already loaded and preprocessed. Skipping...")
-
 
 
 # =============================================================================
@@ -115,7 +116,8 @@ Table:
 {user_question_table}
 Post_text:
 {user_question_post_text} 
-3. Please use the examples above "Let's think step by step" to do reason and calculation
+3. Please use the examples above "Let's think step by step" to do reason and 
+calculation
 
 4. Please produce the following outputs:
 - Reasoning Steps:
@@ -153,7 +155,7 @@ def query_gpt(prompt: str) -> str:
              "content": "You are a helpful financial analysis assistant."},
             {"role": "user", "content": prompt}
         ],
-        temperature=0.1
+        temperature=0.0
     )
     return response.choices[0].message.content.strip()
 
@@ -171,7 +173,8 @@ def generate_answer(question: str) -> str:
 
     # Retrieve context for the given question
     context = query_data(question, shared_data.processed_dataset)
-    few_shot_prompt = generate_few_shot_prompt(shared_data.processed_dataset, question,
+    few_shot_prompt = generate_few_shot_prompt(shared_data.processed_dataset,
+                                               question,
                                                context, n=3)
     print("------ Prompt Sent to GPT ------\n", few_shot_prompt)
     response = query_gpt(few_shot_prompt)
@@ -189,6 +192,7 @@ def generate_ground_truth(question: str) -> Dict[str, str]:
 
     # Retrieve context for the given question
     context = query_data(question, shared_data.processed_dataset)
+    print("debug table format",context['table'] )
     # Retrieve the expected program and answer from the context
     program = context.get("program", "Not Available")
     answer = context.get("answer", "Not Available")
@@ -216,7 +220,7 @@ if __name__ == "__main__":
     load_and_preprocess_data(url)
 
     # Running inference for a single question
-    question_text = "what portion of future minimum rental receipts is expected to be collected within the next 24 months?"
+    question_text = "by how much did total proved undeveloped reserves decrease during 2011?"
     print("\n------ GPT-3.5 Response ------\n")
     generate_answer(question_text)
 
