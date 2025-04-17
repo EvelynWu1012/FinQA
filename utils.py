@@ -1,0 +1,111 @@
+import re
+import random
+from typing import Dict
+
+
+def clean_text(text: str) -> str:
+    """
+    Cleans input text by removing unwanted characters and extra spaces.
+
+    Args:
+    - text (str): Input text to be cleaned.
+
+    Returns:
+    - str: Cleaned text.
+    """
+    text = re.sub(r"\s+", " ", text.strip())
+    return text
+
+
+def format_table(table):
+    """
+    Formats focused table rows into a readable string.
+
+    Args:
+    - focused_rows (List[List[str]]): Table rows with the header.
+
+    Returns:
+    - str: Formatted table string.
+    """
+    if not table:
+        return ""
+    header = table[0]
+    rows = table[1:]
+    header_line = " Rows | ".join(header)
+    row_lines = [" | ".join(row) for row in rows]
+    return header_line + "\n" + "\n".join(row_lines)
+
+
+def construct_chain_of_thought(data):
+    parts = []
+
+    # Step 1: Understand the Problem
+    question = data.get("question", "")
+    parts.append("1. Understand the Problem")
+    parts.append(f"Rephrase: What is being asked is - '{question}'.")
+
+    # Step 2: Break Down the Problem
+    parts.append("\n2. Break Down the Problem")
+    parts.append("Sub-tasks:")
+
+    focused_table_row = data.get("focused_table_row", [])
+    focused_text_row = data.get("focused_text_row", [])
+    if focused_table_row:
+        for row in focused_table_row:
+            parts.append(f"- Identify and analyze table row : '{row}'")
+    if focused_text_row:
+        for row in focused_text_row:
+            parts.append(f"- Identify and analyze text row : '{row}'")
+
+    parts.append(
+        "- Locate the column in the table that contains relevant information.")
+    parts.append("- Extract and interpret the corresponding value(s).")
+
+    # Step 3: Apply Logical Reasoning
+    parts.append("\n3. Apply Logical Reasoning")
+
+    steps = data.get("steps", [])
+    if not steps:
+        return "No reasoning steps available."
+    else:
+        parts.extend([f"Step {i + 1}: {step}" for i, step in enumerate(steps)])
+
+    return "\n".join(parts)
+
+
+def extract_llm_response_components(llm_output):
+    """
+    Extracts key components from a formatted LLM output.
+
+    Parameters:
+        llm_output (str): The LLM-generated response text.
+
+    Returns:
+        dict: A dictionary with keys:
+            'reasoning_steps', 'program', 'answer', 'confidence'
+            (only if found in the input).
+    """
+    result = {}
+
+    reasoning_match = re.search(
+        r'\*\*Reasoning Steps:\*\*\s*(.*?)\s*('
+        r'?=\*\*Program:|\*\*Answer:|\*\*Confidence:|\Z)',
+        llm_output, re.DOTALL)
+    program_match = re.search(
+        r'\*\*Program:\*\*\s*(.*?)\s*(?=\*\*Answer:|\*\*Confidence:|\Z)',
+        llm_output, re.DOTALL)
+    answer_match = re.search(
+        r'\*\*Answer:\*\*\s*(.*?)\s*(?=\*\*Confidence:|\Z)', llm_output,
+        re.DOTALL)
+    confidence_match = re.search(r'\*\*Confidence:\*\*\s*(.+)', llm_output)
+
+    if reasoning_match:
+        result['reasoning_steps'] = reasoning_match.group(1).strip()
+    if program_match:
+        result['program'] = program_match.group(1).strip()
+    if answer_match:
+        result['answer'] = answer_match.group(1).strip()
+    if confidence_match:
+        result['confidence'] = confidence_match.group(1).strip()
+
+    return result
