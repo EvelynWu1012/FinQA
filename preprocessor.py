@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple
+from typing import Dict
 import shared_data
 
 
@@ -34,23 +34,22 @@ def preprocess_example(example: Dict) -> Dict:
     return processed_data
 
 
-def preprocess_dataset(data: List[Dict], max_samples: int) -> Dict:
+def preprocess_dataset(data: Dict, max_samples: int) -> Dict:
     """
     Preprocess the dataset into a dictionary where:
     - Key: question (str)
-    - Value: Dictionary containing all processed data (including program variants)
+    - Value:
+    Dictionary containing all processed data(include program variants)
     """
 
     all_processed_data = {}
 
     for example in data[:max_samples]:
-        processed = preprocess_example(example) # This returns {(q,p): data} dict
+        # This returns {(q,p): data} dict
+        processed = preprocess_example(example)
         all_processed_data.update(processed)
 
     shared_data.processed_dataset = all_processed_data  # Save to shared_data
     # Extract questions for later use
     shared_data.questions = list(all_processed_data.keys())
     return shared_data.processed_dataset
-
-
-

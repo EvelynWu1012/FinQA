@@ -1,18 +1,9 @@
-
 import shared_data
-
-
-# Shared data storage
-class SharedData:
-    processed_dataset = {}
-
-
-shared_data = SharedData()
 
 
 def parse_table(raw_table):
     result = {}
-    for i, row in enumerate(raw_table[1:], start = 1):  # skip the first row
+    for i, row in enumerate(raw_table[1:], start=1):  # skip the first row
         if not row or len(row) < 2:
             print(f"Skipping invalid row {i}: {row}")
             continue
@@ -37,30 +28,26 @@ def eval_expr(expression, memory, question):
 
     if expression.startswith("add("):
         a, b = get_operands(expression, 4)
-        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
-                                                                       memory,
-                                                                       question)
+        val1, val2 = (resolve_value(a, memory, question),
+                      resolve_value(b, memory, question))
         return _log_result(expression, val1, val2, val1 + val2, "+")
 
     elif expression.startswith("subtract("):
         a, b = get_operands(expression, 9)
-        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
-                                                                       memory,
-                                                                       question)
+        val1, val2 = (resolve_value(a, memory, question),
+                      resolve_value(b, memory, question))
         return _log_result(expression, val1, val2, val1 - val2, "-")
 
     elif expression.startswith("multiply("):
         a, b = get_operands(expression, 9)
-        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
-                                                                       memory,
-                                                                       question)
+        val1, val2 = (resolve_value(a, memory, question),
+                      resolve_value(b, memory, question))
         return _log_result(expression, val1, val2, val1 * val2, "*")
 
     elif expression.startswith("divide("):
         a, b = get_operands(expression, 7)
-        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
-                                                                       memory,
-                                                                       question)
+        val1, val2 = (resolve_value(a, memory, question),
+                      resolve_value(b, memory, question))
         if val2 == 0:
             print(f"Warning: Division by zero in expression: {expression}")
             return float('nan')
@@ -75,9 +62,8 @@ def eval_expr(expression, memory, question):
 
     elif expression.startswith("greater("):
         a, b = get_operands(expression, 8)
-        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
-                                                                       memory,
-                                                                       question)
+        val1, val2 = (resolve_value(a, memory, question),
+                      resolve_value(b, memory, question))
         result = "yes" if val1 > val2 else "no"
         # print(f"Intermediate: {expression} → {val1} > {val2} = {result}")
         return result
@@ -141,15 +127,20 @@ def resolve_value(value, memory, question, table_override=None):
 
     if value.startswith("table_average("):
         table = table_override or _get_table_for_question(question)
-        if table and value in table:
-            val = table[value]
+        column = value[len("table_average("):-1]  # Extract column name
+        if table and column in table:
+            val = table[column]
         if isinstance(val, list):
             if len(val) == 1:
                 return val[0]
-            return val
+            elif len(val) > 1:
+                return val
+            else:
+                return float('nan')
         return val
-        print(f"Warning: Unknown table column or value: {value}")
-        raise ValueError(f"Unknown expression or missing table column: {value}")
+
+    raise ValueError(
+            f"Unknown expression or missing table column: {value}")
 
 
 def _get_table_for_question(question):

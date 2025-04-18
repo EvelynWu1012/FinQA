@@ -12,7 +12,8 @@ from langchain.vectorstores.faiss import FAISS
 from dotenv import load_dotenv
 import openai
 import os
-import executor  # Importing executor.py to use load_data function
+
+import data_loader
 
 # SETUP
 load_dotenv()
@@ -27,19 +28,19 @@ based on a question.
 
 def load_table_context():
     """
-    Loads the data using load_data from executor.py, retrieves necessary
+    Loads the data using load_data from program_executor.py, retrieves necessary
     fields,
     splits the table into chunks, and embeds them for further processing.
 
     Returns:
     - db (FAISS): FAISS database with embedded table chunks.
     """
-    # Step 1: Load the data using load_data function from executor.py
+    # Step 1: Load the data using load_data function from program_executor.py
     url = "your_data_url_here"  # Replace with actual URL
     zip_file_path = "data.zip"
     extract_to = "data"
     json_file = "train.json"
-    data = executor.load_data(url, zip_file_path, extract_to, json_file)
+    data = data_loader.download_data(url, zip_file_path, extract_to, json_file)
 
     # Step 2: Process the loaded data
     context = []

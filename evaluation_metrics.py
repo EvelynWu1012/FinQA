@@ -15,10 +15,10 @@ def exact_match_num(predicted: str, ground_truth: str,
     the given threshold.
 
     Args:
-        predicted (str): The predicted answer from the model, cleaned,
-        can be converted to float
-        ground_truth (str): The correct ground truth answer, cleaned,
-        can be converted to float
+        predicted (str): The predicted answer from the model -
+                        it should be cleaned, can be converted to float
+        ground_truth (str): The correct ground truth answer -
+                        it should be cleaned, can be converted to float
         threshold (float): The numeric proximity threshold (default 0.05,
         i.e., 5%).
 
@@ -45,7 +45,7 @@ def exact_match_num(predicted: str, ground_truth: str,
 
 def numeric_proximity(pred: str, truth: str, threshold=0.05) -> bool:
     """
-    Checks if the predicted value is within a specified proximity threshold
+    checks if the predicted value is within a specified proximity threshold
     of the truth value.
 
     Args:
@@ -68,7 +68,7 @@ def numeric_proximity(pred: str, truth: str, threshold=0.05) -> bool:
 
 def exact_match_string(predicted, ground_truth):
     """
-    Checks whether two strings are exactly the same.
+    checks whether two strings are exactly the same.
 
     Args:
         predicted (str): The predicted string.
@@ -112,7 +112,7 @@ def evaluate_exact_match(url: str, num_samples: int,
     all_questions = list(processed_data.keys())
     if not processed_data:
         print("⚠️ No questions found in processed_data. Exiting evaluation.")
-        return 0.0
+        return 0.0, None
     sample_size = min(num_samples, len(all_questions))
     sampled_questions = random.sample(all_questions, sample_size)
 
