@@ -1,344 +1,190 @@
 
-import re
-from data_loader import download_data
-from preprocessor import preprocess_dataset
 import shared_data
 
-"""
-Step 2: Table Parser Design. 
-"""
+
+# Shared data storage
+class SharedData:
+    processed_dataset = {}
+
+
+shared_data = SharedData()
+
 
 def parse_table(raw_table):
-    """
-    Converts a raw table (nested list) into a dictionary where each key is
-    the first element of the row, and the value is a list of numbers (
-    converted from strings). Skips the first row of the table.
-
-    Example:
-    [['beginning of year', '405'],
-     ['revisions of previous estimates', '15']]
-    -->
-    {
-        'revisions of previous estimates': [15],
-        ...
-    }
-    """
     result = {}
-
     for row in raw_table[1:]:  # skip the first row
-        if not row:
+        if not row or len(row) < 2:
+            print(f"Skipping invalid row {i}: {row}")
             continue
         key = row[0]
         values = []
         for val in row[1:]:
-            # Clean up and convert to number
             try:
                 num = float(val.strip().split()[0].replace(',', ''))
                 values.append(num)
             except ValueError:
-                pass  # skip non-numeric values
+                pass
         result[key] = values
-
+    print(f"Parsed table: {result}")
     return result
 
 
-
-"""
-Step 3: Build the Program Executor
-"""
-
-
-def eval_expr(expression, table, memory):
-    """
-    Evaluates a single arithmetic expression involving basic operations:
-    add, subtract, multiply, divide.
-
-    The expression can involve:
-        - Constants (e.g., "const_100")
-        - Memory references (e.g., "#0", "#1") which are previously computed
-        intermediate results.
-
-    Parameters:
-        expression (str): A string expression like 'subtract(#0, 181001)'.
-        table (List[Dict]): A list of dictionaries representing a table (
-        e.g., parsed from HTML or CSV).
-        memory (Dict[str, float]): A dictionary storing intermediate
-        computation results by keys like '#0', '#1'.
-
-    Returns:
-        float: The result of evaluating the arithmetic expression.
-
-    Raises:
-        ZeroDivisionError: If a divide operation attempts to divide by zero.
-        ValueError: If the expression format is unknown or operands can't be
-        resolved.
-    """
-    # Remove any whitespace to simplify parsing (e.g., 'subtract( #0 ,
-    # 100 )' becomes 'subtract(#0,100)')
+def eval_expr(expression, memory, question):
     expression = expression.replace(" ", "")
 
-    # Handle addition: 'add(a, b)'
+    def get_operands(expr, prefix_len):
+        return expr[prefix_len:-1].split(",")
+
     if expression.startswith("add("):
-        operands = expression[4:-1].split(
-            ",")  # Extract 'a' and 'b' from 'add(a,b)'
-        val1 = resolve_value(operands[0], table, memory)
-        val2 = resolve_value(operands[1], table, memory)
-        result = val1 + val2
-        print(f"Intermediate: {expression} → {val1} + {val2} = {result}")
-        return result
+        a, b = get_operands(expression, 4)
+        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
+                                                                       memory,
+                                                                       question)
+        return _log_result(expression, val1, val2, val1 + val2, "+")
 
-    # Handle subtraction: 'subtract(a, b)'
     elif expression.startswith("subtract("):
-        operands = expression[9:-1].split(
-            ",")  # Extract 'a' and 'b' from 'subtract(a,b)'
-        val1 = resolve_value(operands[0], table, memory)
-        val2 = resolve_value(operands[1], table, memory)
-        result = val1 - val2
-        print(f"Intermediate: {expression} → {val1} - {val2} = {result}")
-        return result
+        a, b = get_operands(expression, 9)
+        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
+                                                                       memory,
+                                                                       question)
+        return _log_result(expression, val1, val2, val1 - val2, "-")
 
-    # Handle multiplication: 'multiply(a, b)'
     elif expression.startswith("multiply("):
-        operands = expression[9:-1].split(
-            ",")  # Extract 'a' and 'b' from 'multiply(a,b)'
-        val1 = resolve_value(operands[0], table, memory)
-        val2 = resolve_value(operands[1], table, memory)
-        result = val1 * val2
-        print(f"Intermediate: {expression} → {val1} * {val2} = {result}")
-        return result
+        a, b = get_operands(expression, 9)
+        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
+                                                                       memory,
+                                                                       question)
+        return _log_result(expression, val1, val2, val1 * val2, "*")
 
-    # Handle division: 'divide(a, b)'
     elif expression.startswith("divide("):
-        operands = expression[7:-1].split(
-            ",")  # Extract 'a' and 'b' from 'divide(a,b)'
-        val1 = resolve_value(operands[0], table, memory)
-        denominator = resolve_value(operands[1], table, memory)
-
-        # Check for division by zero
-        if denominator == 0:
+        a, b = get_operands(expression, 7)
+        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
+                                                                       memory,
+                                                                       question)
+        if val2 == 0:
             print(f"Warning: Division by zero in expression: {expression}")
             return float('nan')
+        return _log_result(expression, val1, val2, val1 / val2, "/")
 
-        result = val1 / denominator
-        print(
-            f"Intermediate: {expression} → {val1} / {denominator} = {result}")
-        return result
-
-    # Handle exponentiation: exp(a, b) = a ** b
     elif expression.startswith("exp("):
-        operands = expression[4:-1].split(",")
-        if len(operands) != 2:
-            raise ValueError(
-                f"Invalid number of arguments in expression: {expression}")
-        base = resolve_value(operands[0], table, memory)
-        exponent = resolve_value(operands[1], table, memory)
-        result = base ** exponent
-        print(f"Intermediate: {expression} → {base} ** {exponent} = {result}")
-        return result
+        a, b = get_operands(expression, 4)
+        base, exp = resolve_value(a, memory, question), resolve_value(b,
+                                                                      memory,
+                                                                      question)
+        return _log_result(expression, base, exp, base ** exp, "**")
 
-    # Handle greater
     elif expression.startswith("greater("):
-        operands = expression[8:-1].split(",")
-        val1 = resolve_value(operands[0], table, memory)
-        val2 = resolve_value(operands[1], table, memory)
+        a, b = get_operands(expression, 8)
+        val1, val2 = resolve_value(a, memory, question), resolve_value(b,
+                                                                       memory,
+                                                                       question)
         result = "yes" if val1 > val2 else "no"
-        print(f"Intermediate: {expression} → {val1} > {val2} = {result}")
+        # print(f"Intermediate: {expression} → {val1} > {val2} = {result}")
         return result
 
-    # elif expression.startswith("table_average("):
+    elif expression.startswith("table_average("):
+        processed_dataset = shared_data.processed_dataset
+        extract_info = processed_dataset.get(question, {})
+        if extract_info:
+            table = parse_table(extract_info['table'])
+        else:
+            print("Data for this question not found.")
+            table = {}
+        col = expression[14:-1]
+        values = resolve_value(col, memory, question, table_override=table)
+        if not values:
+            return float('nan')
+        return round(sum(values) / len(values), 3)
 
     else:
-        # If it's not a recognized operation, attempt to directly resolve it
-        # (e.g., "#0", "const_100", or "table[0][\"Revenue\"]")
-        result = resolve_value(expression, table, memory)
-        print(f"Intermediate: {expression} → Resolved to {result}")
-        return result
+        val = resolve_value(expression, memory, question)
+        if isinstance(val, (int, float)):
+            return round(val, 3)
+        return val
 
 
-def resolve_value(value, memory):
-    """
-    Resolves the input `value` to a numerical float.
+def _log_result(expr, v1, v2, result, op):
+    # print(f"Intermediate: {expr} → {v1} {op} {v2} = {result}")
+    return result
 
-    The function supports:
-    - Memory references (e.g., "#0", "#1") from previous steps in `memory`
-    - Named constants (e.g., "const_100" → 100.0, "const_m1" → -1.0)
-    - Raw numeric strings (e.g., "75.95", "-10")
-    - Percentages (e.g., "4.02%" → 0.0402)
-    Parameters:
-        value (str | int | float): The value or reference to resolve.
-        memory (dict): Dictionary storing intermediate computed values by
-        keys like "#0", "#1".
 
-    Returns:
-        float: The resolved numeric value.
-
-    Raises:
-        ValueError: If the value can't be parsed or resolved.
-    """
-    # If the value is already a number, return it as float
+def resolve_value(value, memory, question, table_override=None):
     if isinstance(value, (int, float)):
         return float(value)
 
-    # Clean up leading/trailing spaces
     value = value.strip()
 
-    # Case 1: Memory reference like "#0", "#1"
     if value.startswith("#"):
-        return memory.get(value, 0)  # Return stored value or 0 if not present
+        # Fetch from memory
+        idx = int(value[1:])
+        if f"#{idx}" in memory:
+            return memory[f"#{idx}"]
+        else:
+            raise ValueError(f"Memory reference #{idx} not found.")
 
-    # Case 2: Named constant like "const_100" → 100.0 or "const_m1" → -1.0
-    elif value == "const_m1":
-        return -1.0  # Special case for const_m1
+    if value == "const_m1":
+        return -1.0
     elif value.startswith("const_"):
         try:
-            return float(
-                value.replace("const_", ""))  # Strip "const_" and convert
+            return float(value.replace("const_", ""))
         except ValueError:
-            raise ValueError(f"Invalid constant: {value}")
+            raise ValueError(f"Invalid constant format: {value}")
 
-    # Case 3: Raw numeric string (e.g., "75.95", "-100")
-    elif value.replace(".", "", 1).replace("-", "", 1).isdigit():
+    if value.replace(".", "", 1).replace("-", "", 1).isdigit():
         return float(value)
 
-    # Case 4: Handle percentages (e.g., "4.02%" → 0.0402)
-    elif value.endswith("%"):
+    if value.endswith("%"):
         try:
-            return float(value[:-1]) / 100  # Remove "%" and convert to float
+            return float(value[:-1]) / 100
         except ValueError:
-            raise ValueError(f"Invalid percentage value: {value}")
+            raise ValueError(f"Invalid percentage format: {value}")
 
-    ## elif to handle the table_avarage to extract column name
+    if value.startswith("table_average("):
+        table = table_override or _get_table_for_question(question)
+        if table and value in table:
+            val = table[value]
+        if isinstance(val, list):
+            if len(val) == 1:
+                return val[0]
+            return val
+        return val
+        print(f"Warning: Unknown table column or value: {value}")
+        raise ValueError(f"Unknown expression or missing table column: {value}")
 
-    else:
-        raise ValueError(f"Unknown expression: {value}")
+
+def _get_table_for_question(question):
+    dataset = shared_data.processed_dataset
+    extract_info = dataset.get(question, {})
+    if extract_info:
+        return parse_table(extract_info['table'])
+    return {}
 
 
-def execute_program(program, table):
-    """
-    Executes a sequence of arithmetic operations defined in a single string
-    of expressions.
+def split_program_steps(prog):
+    steps = []
+    depth = 0
+    current = []
+    for char in prog:
+        if char == ',' and depth == 0:
+            steps.append(''.join(current).strip())
+            current = []
+        else:
+            if char == '(':
+                depth += 1
+            elif char == ')':
+                depth -= 1
+            current.append(char)
+    if current:
+        steps.append(''.join(current).strip())
+    return steps
 
-    Each expression can reference previously computed results using memory
-    keys like '#0', '#1', etc.
-    The results of each step are stored in a memory dictionary and can be
-    used in subsequent expressions.
 
-    Parameters:
-        program (str): A string containing comma-separated expressions to be
-        executed sequentially.
-                       Each expression may involve constants (e.g., const_100),
-                       table references (e.g., table[0]["Revenue"]),
-                       or memory references (e.g., #0).
-
-    Returns:
-        float: The result of the final expression in the program sequence.
-
-    Example:
-        program = "subtract(75.95, const_100), divide(#0, const_100),
-        subtract(102.11, const_100), divide(#2, const_100), subtract(#1, #3)"
-        result = execute_program(program, table)
-        # This will evaluate the expressions step-by-step using intermediate
-        memory.
-    """
-    memory = {}  # Dictionary to hold intermediate results, keyed as '#0',
-    # '#1', etc.
-
-    # Split the input program string into individual expressions by commas
-    steps = re.findall(r'[^,()]*\([^)]*\)[^,()]*|[^,()]+', program)
-
+def execute_program(program, question):
+    memory = {}
+    # steps = re.findall(r'[^,()]*\([^)]*\)[^,()]*|[^,()]+', program)
+    steps = split_program_steps(program)
     for i, step in enumerate(steps):
-        result = eval_expr(step, table, memory)  # Evaluate each expression
-        memory[f"#{i}"] = result  # Store result in memory with key like '#0'
+        result = eval_expr(step, memory, question)
+        memory[f"#{i}"] = result
 
-    # Return the final result as float if numeric, else string (e.g.,
-    # "yes"/"no")
-    if isinstance(result, float):
-        return round(result, 5)
-    else:
-        return result
-
-"""
-def test_executor(url):
-    """
-"""
-    # Load sample data from a JSON file
-    data = load_data(url)
-    success, total = 0, 0
-
-    # Test on the first 5 examples from the dataset
-    for example in data:
-        table = parse_table(example["table"])
-
-        # Find all QA pairs in the example
-        qa_pairs = []
-        i = 0
-        while True:
-            qa_key = f"qa_{i}"
-            if qa_key in example:
-                qa_pairs.append(example[qa_key])
-                i += 1
-            else:
-                # Also check for just "qa" (without number) for backward
-                # compatibility
-                if i == 0 and "qa" in example:
-                    qa_pairs.append(example["qa"])
-                break
-
-        if not qa_pairs:
-            print(
-                f"Skipping example {example.get('id', 'unknown')} - no QA "
-                f"pairs found")
-            continue
-
-        print(
-            f"\nProcessing example {example.get('id', 'unknown')} with "
-            f"{len(qa_pairs)} QA pairs")
-        print("-" * 50)
-
-        for j, qa in enumerate(qa_pairs):
-            try:
-                program = qa["program"]
-
-                # Handle percentage answers like '14.1%' -> 0.141
-                answer_str = qa["exe_ans"]
-                if isinstance(answer_str, str) and answer_str.strip().endswith(
-                        "%"):
-                    expected_answer = float(
-                        answer_str.strip().replace("%", "")) / 100
-                else:
-                    expected_answer = float(answer_str)
-
-                # Execute the program
-                predicted_answer = execute_program(program, table)
-
-                # Print detailed result
-                print(f"QA Pair {j}:")
-                print(f"Question: {qa['question']}")
-                print(f"Program: {program}")
-                print(f"Expected: {expected_answer}")
-                print(f"Predicted: {predicted_answer}")
-                # Compare and update counters
-                if abs(predicted_answer - expected_answer) < 0.01:
-                    print("Match: ✅")
-                    success += 1
-                else:
-                    print("Match: ❌")
-                total += 1
-                print("-" * 50)
-
-            except KeyError as e:
-                print(f"Error processing QA pair {j}: Missing key {e}")
-            except Exception as e:
-                print(f"Error processing QA pair {j}: {str(e)}")
-
-    # Print final accuracy
-    print(
-        f"\n✅ Accuracy: {success}/{total} = {success / total:.2%}" if total
-                                                                      > 0
-        else "\nNo QA pairs processed.")
-
-
-url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
-# Call the test function
-test_executor(url)
-"""
+    return round(result, 3) if isinstance(result, float) else result
