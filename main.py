@@ -6,19 +6,24 @@ import shared_data
 from prompt_example_selector import prepare_questions
 import importlib
 
-
-
 url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
 
 if not shared_data.processed_dataset:
     print("Loading and preprocessing data...")
     raw = download_data(url)
-    shared_data.processed_dataset = preprocess_dataset(raw, 100)  # Adjust MAX_SAMPLES as necessary
-    shared_data.questions = list(shared_data.processed_dataset.keys())  # Explicitly update questions
-    print(f"Questions in shared_data: {len(shared_data.questions)}")  # Debug print to check if it's populated
+    shared_data.processed_dataset = preprocess_dataset(raw,
+                                                       100)  # Adjust
+    # MAX_SAMPLES as necessary
+    shared_data.questions = list(
+        shared_data.processed_dataset.keys())  # Explicitly update questions
+    print(
+        f"Questions in shared_data: {len(shared_data.questions)}")  # Debug
+    # print to check if it's populated
 else:
     print("Data already loaded and preprocessed. Skipping...")
-    print(f"Questions in shared_data: {len(shared_data.questions)}")  # Debug print
+    print(
+        f"Questions in shared_data: {len(shared_data.questions)}")  # Debug
+    # print
 
 prepare_questions()
 

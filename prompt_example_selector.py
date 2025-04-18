@@ -25,7 +25,7 @@ RANDOM_STATE = 42
 
 def prepare_questions():
     questions = shared_data.questions  # List of questions
-    print(f"Questions in shared_data: {len(questions)}")
+    # print(f"Questions in shared_data: {len(questions)}")
     return questions
 
 
@@ -70,8 +70,8 @@ def get_clustered_questions(questions, question_embeddings, clusters):
     return cluster_idx_to_questions
 
 
-def get_top_3_similar_questions(input_question, question_to_cluster_label,
-                                cluster_idx_to_questions):
+def get_top_similar_questions(input_question, question_to_cluster_label,
+                                cluster_idx_to_questions, top_num):
     """Returns top 3 similar questions in the same cluster as
     input_question."""
     label = question_to_cluster_label.get(input_question)
@@ -96,12 +96,11 @@ def get_top_3_similar_questions(input_question, question_to_cluster_label,
             continue
         sim = cosine_similarity([input_embedding], [emb])[0][0]
         heapq.heappush(heap, (sim, q))
+    top_examples = heapq.nlargest(top_num, heap)
+    return [q for sim, q in top_examples]
 
-    top_3 = heapq.nlargest(3, heap)
-    return [q for sim, q in top_3]
 
-
-def initialize_prompt_example_selector():
+def initialize_question_clusters():
     """
     Should be called once during setup to compute and store clustering-related
     variables that are reused during inference.
@@ -118,7 +117,7 @@ def initialize_prompt_example_selector():
                                                                    clusters)
 
 
-def prompt_example_generator(user_question):
+def prompt_example_generator(user_question, top_num):
     """
     Given a user question, return top 3 most similar questions
     from the same cluster using semantic similarity.
@@ -126,10 +125,11 @@ def prompt_example_generator(user_question):
     """
     if not shared_data.question_to_cluster_label:
         raise ValueError(
-            "You must run initialize_prompt_example_selector() before calling prompt_example_generator.")
+            "You must run initialize_question_clusters() before calling prompt_example_generator.")
 
-    return get_top_3_similar_questions(
+    return get_top_similar_questions(
         user_question,
         shared_data.question_to_cluster_label,
-        shared_data.cluster_idx_to_questions
+        shared_data.cluster_idx_to_questions,
+        top_num
     )

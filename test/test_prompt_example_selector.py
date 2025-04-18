@@ -8,7 +8,7 @@ from data_loader import download_data
 from preprocessor import preprocess_dataset
 from prompt_example_selector import (
     prompt_example_generator,
-    initialize_prompt_example_selector,
+    initialize_question_clusters,
 )
 from prompt_answer_gen_inference import MAX_SAMPLES
 
@@ -38,22 +38,23 @@ def test_prompt_example_generator(user_question, url):
     if (not shared_data.question_to_cluster_label or not
     shared_data.cluster_idx_to_questions):
         print("Initializing clustering...")
-        initialize_prompt_example_selector()
+        initialize_question_clusters()
     else:
         print("Clustering already initialized.")
 
     # Step 3: Run the prompt example generator
-    top_3 = prompt_example_generator(user_question)
+    top_num = 3
+    top_examples = prompt_example_generator(user_question, top_num)
 
     # Step 4: Validate results
-    assert isinstance(top_3, list)
-    assert len(top_3) <= 3
-    for q in top_3:
+    assert isinstance(top_examples, list)
+    assert len(top_examples) <= 3
+    for q in top_examples:
         assert isinstance(q, str)
         assert q in shared_data.questions  # It should return questions that
         # exist in shared_data.questions
 
-    print(f"\nTop 3 similar questions to '{user_question}':\n", top_3)
+    print(f"\nTop 3 similar questions to '{user_question}':\n", top_examples)
 
 
 # This part is the same as the example you provided, for running batch tests

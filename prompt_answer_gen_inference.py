@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 import os
 from typing import Dict
 import openai
+
+from prompt_example_selector import initialize_question_clusters, \
+    prompt_example_generator
 from utils import format_table, construct_chain_of_thought
 from preprocessor import preprocess_dataset
 from data_loader import download_data
@@ -42,6 +45,12 @@ def load_and_preprocess_data(url: str, max_samples: int = None) -> None:
     else:
         print("Data already loaded and preprocessed. Skipping...")
 
+    if (not shared_data.question_to_cluster_label or not
+    shared_data.cluster_idx_to_questions):
+        print("Initializing clustering...")
+        initialize_question_clusters()
+    else:
+        print("Clustering already initialized.")
 
 # =============================================================================
 # Step 2: Set up LangChain Prompt Template
@@ -64,9 +73,11 @@ def query_data(question: str, processed_dataset: Dict) -> str:
 # Define a prompt template to generate an answer or code based on the
 # question and context.
 def generate_few_shot_prompt(processed_data, user_question, context, n=3, ):
-    all_questions = list(processed_data.keys())
-    random.seed(42)  # Set a fixed seed for reproducibility
-    selected_questions = random.sample(all_questions, n)
+    # all_questions = list(processed_data.keys())
+    # random.seed(42)  # Set a fixed seed for reproducibility
+    # selected_questions = random.sample(all_questions, n)
+    top_num = 3
+    selected_questions = prompt_example_generator(user_question, top_num)
 
     examples = []
     for idx, example_question in enumerate(selected_questions):
