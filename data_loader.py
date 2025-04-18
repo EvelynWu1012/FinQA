@@ -3,10 +3,13 @@ import zipfile
 import requests
 import json
 
-def download_data(url: str, zip_file_path: str = "data.zip", extract_to: str = "data") -> dict:
+
+def download_data(url: str, zip_file_path: str = "data.zip",
+                  extract_to: str = "data") -> dict:
     """
     Downloads the dataset, extracts it, and loads the JSON file.
     """
+
     if not os.path.exists(zip_file_path):
         print(f"Downloading {zip_file_path} from {url}...")
         response = requests.get(url)

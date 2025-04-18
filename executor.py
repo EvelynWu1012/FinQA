@@ -12,7 +12,7 @@ shared_data = SharedData()
 
 def parse_table(raw_table):
     result = {}
-    for row in raw_table[1:]:  # skip the first row
+    for i, row in enumerate(raw_table[1:], start = 1):  # skip the first row
         if not row or len(row) < 2:
             print(f"Skipping invalid row {i}: {row}")
             continue
