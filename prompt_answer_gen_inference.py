@@ -52,11 +52,11 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 # Define a function for querying the processed data
-def query_data(question: str, processed_data: Dict) -> str:
+def query_data(question: str, processed_dataset: Dict) -> str:
     """
     Given a question, return the associated context from the preprocessed data.
     """
-    return processed_data.get(question,
+    return processed_dataset.get(question,
                               {"error": "Data for this question not found."})
 
 
@@ -101,7 +101,8 @@ Output:
     user_question_pre_text = context["pre_text"]
     user_question_table = format_table(context["table"])
     user_question_post_text = context["post_text"]
-    question_prompt = f""" Questions
+    question_prompt = f""" 
+Questions
 
 You are a helpful financial analysis assistant. Using the pre_text, table
 and post_text and reasoning details below and examples provided above, 
@@ -192,7 +193,6 @@ def generate_ground_truth(question: str) -> Dict[str, str]:
 
     # Retrieve context for the given question
     context = query_data(question, shared_data.processed_dataset)
-    print("debug table format",context['table'] )
     # Retrieve the expected program and answer from the context
     program = context.get("program", "Not Available")
     answer = context.get("answer", "Not Available")
