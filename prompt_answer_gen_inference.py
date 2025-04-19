@@ -231,7 +231,7 @@ if __name__ == "__main__":
     load_and_preprocess_data(url)
 
     # Running inference for a single question
-    question_text = "what is actual operating cash flow reported for 2011?"
+    question_text = "what was the percent of the growth in the revenues from 2007 to 2008"
     print("\n------ GPT-3.5 Response ------\n")
     generate_answer(question_text)
 

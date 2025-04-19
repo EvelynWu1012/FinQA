@@ -78,12 +78,18 @@ def construct_chain_of_thought(data):
 
     # Step 3: Apply Logical Reasoning
     parts.append("\n3. Apply Logical Reasoning")
-
-    steps = data.get("steps", [])
-    if not steps:
+    reasoning_dialogue = data.get("reasoning_dialogue", [])
+    turn_program = data.get("turn_program", [])
+    # steps = data.get("steps", [])
+    if (not reasoning_dialogue) or (not turn_program):
         return "No reasoning steps available."
     else:
-        parts.extend([f"Step {i + 1}: {step}" for i, step in enumerate(steps)])
+        # Pair up dialogue and programs, taking the minimum length to avoid index errors
+        paired_steps = zip(reasoning_dialogue, turn_program)
+        parts.extend([
+            f"Step {i + 1}: {dialogue} : {answer}"
+            for i, (dialogue, answer) in enumerate(paired_steps)
+        ])
 
     return "\n".join(parts)
 
