@@ -1,0 +1,4 @@
+question,prediction_answer,ground_truth_answer,exact_match_answer,prediction_program,ground_truth_program,exact_match_program,calculation_match_program
+what was the percentage change in cash provided by operating activities between 2005 and 2006?,,11,False,,"subtract(2880, 2595), divide(#0, 2595)",False,False
+"what was the cumulative percentage return for the four years ended september 30 , 2010 for apple inc.?",,269,False,,"subtract(369, 100), divide(#0, 100)",False,False
+what percentage of total cable segment capital expenditures in 2004 where due to upgrading of cable systems?,,25,False,,"divide(902, 3622)",False,False

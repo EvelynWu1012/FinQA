@@ -1,11 +1,8 @@
-from typing import Dict, Any
 import pytest
-import shared_data
-from data_loader import download_data
-from program_executor import execute_program
-from preprocessor import preprocess_dataset
-from prompt_answer_gen_inference import MAX_SAMPLES
-from utils import clean_text
+from src.shared import shared_data
+from src.data_loader.data_loader import download_data
+from src.preprocessing.preprocessor import preprocess_dataset
+from src.prompt_LLM.prompt_answer_gen_inference import MAX_SAMPLES
 
 
 # Define a fixture for loading and preprocessing data

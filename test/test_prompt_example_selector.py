@@ -3,14 +3,14 @@
 """
 
 import pytest
-import shared_data
-from data_loader import download_data
-from preprocessor import preprocess_dataset
-from prompt_example_selector import (
+from src.shared import shared_data
+from src.data_loader.data_loader import download_data
+from src.preprocessing.preprocessor import preprocess_dataset
+from src.prompt_LLM.prompt_example_selector import (
     prompt_example_generator,
     initialize_question_clusters,
 )
-from prompt_answer_gen_inference import MAX_SAMPLES
+from src.prompt_LLM.prompt_answer_gen_inference import MAX_SAMPLES
 
 
 @pytest.fixture
