@@ -1,4 +1,6 @@
 import shared_data
+from data_loader import download_data
+from preprocessor import preprocess_dataset
 
 
 def parse_table(raw_table):
@@ -7,21 +9,23 @@ def parse_table(raw_table):
         if not row or len(row) < 2:
             print(f"Skipping invalid row {i}: {row}")
             continue
-        key = row[0]
+        key = row[0].strip()
         values = []
         for val in row[1:]:
             try:
+                # Handle cases where value might have text after the number
                 num = float(val.strip().split()[0].replace(',', ''))
                 values.append(num)
-            except ValueError:
+            except (ValueError, IndexError):
                 pass
         result[key] = values
-    print(f"Parsed table: {result}")
+    # print(f"Parsed table: {result}")
     return result
 
 
 def eval_expr(expression, memory, question):
-    expression = expression.replace(" ", "")
+    # expression = expression.replace(" ", "")
+    expression = expression.strip()
 
     def get_operands(expr, prefix_len):
         return expr[prefix_len:-1].split(",")
@@ -76,17 +80,16 @@ def eval_expr(expression, memory, question):
         else:
             print("Data for this question not found.")
             table = {}
-        col = expression[14:-1]
+        col = get_operands(expression, 14)[0]
         values = resolve_value(col, memory, question, table_override=table)
         if not values:
             return float('nan')
         return round(sum(values) / len(values), 3)
 
     else:
-        val = resolve_value(expression, memory, question)
-        if isinstance(val, (int, float)):
-            return round(val, 3)
-        return val
+        print(f"Unsupported operator or expression: {expression}")
+        return None
+        # raise ValueError(f"Unsupported operator or expression: {expression}")
 
 
 def _log_result(expr, v1, v2, result, op):
@@ -125,11 +128,11 @@ def resolve_value(value, memory, question, table_override=None):
         except ValueError:
             raise ValueError(f"Invalid percentage format: {value}")
 
-    if value.startswith("table_average("):
+    if isinstance(value, str):
         table = table_override or _get_table_for_question(question)
-        column = value[len("table_average("):-1]  # Extract column name
-        if table and column in table:
-            val = table[column]
+
+        val = table.get(value, None)
+
         if isinstance(val, list):
             if len(val) == 1:
                 return val[0]
@@ -140,7 +143,7 @@ def resolve_value(value, memory, question, table_override=None):
         return val
 
     raise ValueError(
-            f"Unknown expression or missing table column: {value}")
+        f"Unknown expression or missing table column: {value}")
 
 
 def _get_table_for_question(question):
@@ -179,3 +182,22 @@ def execute_program(program, question):
         memory[f"#{i}"] = result
 
     return round(result, 3) if isinstance(result, float) else result
+
+
+if __name__ == "__main__":
+    url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
+
+    if (shared_data.processed_dataset is None or not
+    shared_data.processed_dataset):
+        print("Loading and preprocessing data...")
+        raw = download_data(url)
+
+        shared_data.processed_dataset = preprocess_dataset(raw, len(raw))
+    else:
+        print("Data already loaded and preprocessed. Skipping...")
+
+    question = "what is actual operating cash flow reported for 2011?"
+    program = "extract('37529')"
+    predicted_answer = execute_program(program, question)
+
+    print("debug predicted_answer", predicted_answer)

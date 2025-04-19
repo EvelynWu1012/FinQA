@@ -149,6 +149,36 @@ def is_numeric(s):
         return False
 
 
+def format_executable_answer(executable_answer):
+    """
+    Formats a programmatically computed answer into a standardized format
+    (float or 'yes'/'no' string) for comparison purposes.
+
+    Parameters:
+        executable_answer (int | float | str): The answer computed by a
+        program.
+
+    Returns:
+        float | str: The formatted answer, either as a float or a normalized
+        'yes'/'no' string.
+    """
+    if isinstance(executable_answer, (int, float)):
+        return float(executable_answer)
+
+    if isinstance(executable_answer, str):
+        cleaned_answer = clean_text(executable_answer.strip().lower())
+        if cleaned_answer in {"yes", "no"}:
+            return cleaned_answer
+        try:
+            return float(cleaned_answer)
+        except ValueError:
+            raise ValueError(
+                f"Cannot convert cleaned answer to float: '{cleaned_answer}'")
+
+    raise TypeError(
+        "Unsupported type for executable_answer. Must be int, float, or str.")
+
+
 def run_program_executor(program: str, question: str,
                          verbose: bool = True) -> Dict[str, Any]:
     """
@@ -293,9 +323,8 @@ if __name__ == "__main__":
     else:
         print("Data already loaded and preprocessed. Skipping...")
 
-    question = ("by how much did total proved undeveloped reserves decrease "
-                "during 2011?")
-    program = "subtract(395, 405), divide(#0, 405)"
+    question = "what is actual operating cash flow reported for 2011?"
+    program = "divide(221, const_1000000), subtract(3.35, #0)"
     run_program_executor(program, question)
     # Run batch test on all
     run_evaluate_all_questions(output_dir="results", verbose=False)

@@ -187,7 +187,7 @@ def generate_answer(question: str) -> str:
     context = query_data(question, shared_data.processed_dataset)
     few_shot_prompt = generate_few_shot_prompt(shared_data.processed_dataset,
                                                question,
-                                               context, n=3)
+                                               context, n=4)
     print("------ Prompt Sent to GPT ------\n", few_shot_prompt)
     response = query_gpt(few_shot_prompt)
     print("------ GPT-3.5 Response ------\n", response)
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     load_and_preprocess_data(url)
 
     # Running inference for a single question
-    question_text = "by how much did total proved undeveloped reserves decrease during 2011?"
+    question_text = "what is actual operating cash flow reported for 2011?"
     print("\n------ GPT-3.5 Response ------\n")
     generate_answer(question_text)
 

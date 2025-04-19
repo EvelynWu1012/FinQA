@@ -1,9 +1,12 @@
 import random
 import csv
+
+from program_executor import execute_program
 from prompt_answer_gen_inference import load_and_preprocess_data, \
     generate_answer
 import shared_data
-from utils import extract_llm_response_components, clean_text, is_numeric
+from utils import extract_llm_response_components, clean_text, is_numeric, \
+    format_executable_answer
 
 
 def exact_match_num(predicted: str, ground_truth: str,
@@ -129,16 +132,17 @@ def evaluate_exact_match(url: str, num_samples: int,
         metadata = processed_data[q]
         ground_truth_answer = str(metadata["answer"]).strip().lower()
         ground_truth_program = metadata["program"].strip().lower()
+        ground_truth_exe_ans = format_executable_answer(metadata["exe_ans"])
 
         try:
             llm_output = str(generate_answer(q))
             parsed_output = extract_llm_response_components(llm_output)
-            # Compare predicted answer and ground truth answer
+
+            # check EXACT MATCH between predicted answer and ground truth answer
             prediction_answer_clean = clean_text(
                 parsed_output.get("answer", "").strip().lower())
-            print("debug prediction_clean", prediction_answer_clean)
+            # print("debug prediction_clean", prediction_answer_clean)
             ground_truth_answer_clean = clean_text(ground_truth_answer)
-            print("debug gt_clean", ground_truth_answer_clean)
             if is_numeric(ground_truth_answer_clean) or is_numeric(
                     prediction_answer_clean):
                 is_correct_answer = exact_match_num(prediction_answer_clean,
@@ -147,11 +151,24 @@ def evaluate_exact_match(url: str, num_samples: int,
                 is_correct_answer = exact_match_string(prediction_answer_clean,
                                                        ground_truth_answer_clean)
 
-            # Compare predicted program and ground truth program
+
+            # check EXACT MATCH between predicted program and ground truth program
             prediction_program = parsed_output.get("program",
                                                    "").strip().lower()
             is_correct_program = exact_match_string(prediction_program,
                                                     ground_truth_program)
+
+            # check Execution-Based Match between predicted program and ground truth program
+            try:
+                prediction_exec_result = execute_program(prediction_program, q)
+
+                if is_numeric(prediction_exec_result) or is_numeric(ground_truth_exe_ans):
+                    is_program_calc_match = exact_match_num(prediction_exec_result, ground_truth_exe_ans)
+                else:
+                    is_program_calc_match = exact_match_string(prediction_exec_result,ground_truth_exe_ans)
+            except Exception as exec_err:
+                print(f"Execution error for question: {q[:60]}... -> {exec_err}")
+                is_program_calc_match = False
 
             # save the results
             results.append({
@@ -161,11 +178,12 @@ def evaluate_exact_match(url: str, num_samples: int,
                 "exact_match_answer": bool(is_correct_answer),
                 "prediction_program": prediction_program,
                 "ground_truth_program": ground_truth_program,
-                "exact_match_program": bool(is_correct_program)
+                "exact_match_program": bool(is_correct_program),
+                "calculation_match_program": bool(is_program_calc_match)
             })
 
             metrics['correct_answer'] += is_correct_answer
-            metrics['correct_program'] += is_correct_program
+            metrics['correct_program'] += is_program_calc_match
 
         except Exception as e:
             results.append({
@@ -194,8 +212,9 @@ def evaluate_exact_match(url: str, num_samples: int,
     print("\n📊 Evaluation Summary:")
     print(f"• Exact Matches Answer: {metrics['correct_answer']}/{metrics['total']}")
     print(f"• Accuracy Answer: {accuracy_answer:.2f}%")
-    print(f"• Exact Matches Program {metrics['correct_program']}/{metrics['total']}")
+    print(f"• Exact Matches(EM) Program {metrics['correct_program']}/{metrics['total']}")
     print(f"• Accuracy Program: {accuracy_program:.2f}%")
     print(f"• Results saved to: {output_csv}")
 
     return accuracy_answer, accuracy_program
+
