@@ -1,3 +1,4 @@
+import os
 import random
 import csv
 
@@ -87,8 +88,8 @@ def exact_match_string(predicted, ground_truth):
     return predicted == ground_truth
 
 
-def evaluate_exact_match(url: str, num_samples: int,
-                         output_csv: str = "test_results.csv",
+def evaluate_answer_program(url: str, num_samples: int,
+                         output_csv: str = "evaluation_results.csv",
                          seed: int = 42) -> tuple:
     """
     Evaluate the model on answer and program of randomly sampled questions
@@ -111,7 +112,7 @@ def evaluate_exact_match(url: str, num_samples: int,
         load_and_preprocess_data(url)
 
     # Step 2: Sample random questions
-    random.seed(seed)
+    # random.seed(seed)
     all_questions = list(processed_data.keys())
     if not processed_data:
         print("⚠️ No questions found in processed_data. Exiting evaluation.")
@@ -196,10 +197,19 @@ def evaluate_exact_match(url: str, num_samples: int,
 
     # Step 4: Save results
     if results:
-        with open(output_csv, mode="w", newline='', encoding="utf-8") as f:
+        # Create results directory in current working directory
+        results_dir = "results"  # This will create it in current working directory
+        # exist_ok=True prevents errors if folder exists
+        os.makedirs(results_dir, exist_ok=True)
+        # exist_ok=True prevents errors if folder exists
+        os.makedirs(results_dir, exist_ok=True)
+        # Define output path
+        output_path = os.path.join(results_dir, output_csv)
+        with open(output_path, mode="w", newline='', encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=results[0].keys())
             writer.writeheader()
             writer.writerows(results)
+        print(f"✅ Results successfully saved to {output_path}")
     else:
         print("⚠️ No results to write to CSV.")
 

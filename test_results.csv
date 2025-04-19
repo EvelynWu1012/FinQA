@@ -1,4 +1,0 @@
-question,prediction_answer,ground_truth_answer,exact_match_answer,prediction_program,ground_truth_program,exact_match_program
-what portion of future minimum rental receipts is expected to be collected within the next 24 months?,29.2,29.2,True,"add(459188, 439959), divide(#0, 3077509)","add(459188, 439959), divide(#0, 3077509)",True
-what was the 5 year return of the s&p 500 index?,80.67,80.67,True,"subtract(180.67, const_100), divide(#0, const_100)","subtract(180.67, const_100), divide(#0, const_100)",True
-what is actual operating cash flow reported for 2011?,3.13,3.129,True,"subtract(3.35, 0.221)","divide(221, const_1000000), subtract(3.35, #0)",False
