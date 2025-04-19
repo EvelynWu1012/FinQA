@@ -132,7 +132,7 @@ Post_text:
 calculation
 
 4. Please produce the following outputs:
-- Reasoning Steps:
+- Logical Reasoning: similar to the Apply Logical Reasoning in the examples
 - Program: function-style operations or function call expressions
 - Answer: Just the final value as string with max.2 digits decimal
 - Confidence: 0-100% certainty 
