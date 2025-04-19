@@ -1,11 +1,9 @@
 from .prompt_answer_gen_inference import (
-    load_and_preprocess_data,
     query_data,
     generate_few_shot_prompt,
     query_gpt,
     generate_answer,
     generate_ground_truth,
-    MAX_SAMPLES
 )
 
 from .prompt_example_selector import (
@@ -21,13 +19,11 @@ from .prompt_example_selector import (
 )
 
 __all__ = [
-    "load_and_preprocess_data",
     "query_data",
     "generate_few_shot_prompt",
     "query_gpt",
     "generate_answer",
     "generate_ground_truth",
-    "MAX_SAMPLES",
     "prepare_questions",
     "generate_embeddings",
     "generate_clusters",

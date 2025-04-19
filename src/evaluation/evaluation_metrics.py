@@ -2,11 +2,11 @@ import os
 import random
 import csv
 from .program_executor import execute_program
-from src.prompt_LLM.prompt_answer_gen_inference import load_and_preprocess_data, \
-    generate_answer
+
 from src.shared import shared_data
-from src.utils.utils import extract_llm_response_components, clean_text, is_numeric, \
-    format_executable_answer
+from src.utils.utils import extract_llm_response_components, clean_text, is_numeric,format_executable_answer
+from src.data_loader import download_data
+from src.preprocessing import preprocess_dataset
 
 
 def exact_match_num(predicted: str, ground_truth: str,
@@ -103,12 +103,13 @@ def evaluate_answer_program(url: str, num_samples: int,
     Returns:
         Accuracy percentage (0-100)
     """
-
+    from src.prompt_LLM.prompt_answer_gen_inference import generate_answer
     # Step 1: Check if data exists or load it
     processed_data = shared_data.processed_dataset
     if not processed_data:
         print("No preprocessed data found - loading now...")
-        load_and_preprocess_data(url)
+        raw = download_data(url)
+        shared_data.processed_dataset = preprocess_dataset(raw)
 
     # Step 2: Sample random questions
     # random.seed(seed)

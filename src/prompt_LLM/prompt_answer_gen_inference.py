@@ -2,28 +2,25 @@ from dotenv import load_dotenv
 import os
 from typing import Dict
 import openai
-from .prompt_example_selector import initialize_question_clusters, \
-    prompt_example_generator
+from .prompt_example_selector import prompt_example_generator
 from src.utils.utils import format_table, construct_chain_of_thought
-from src.preprocessing.preprocessor import preprocess_dataset
-from src.data_loader.data_loader import download_data
 from src.shared import shared_data
 
-# Global variable to hold the max_samples value
-MAX_SAMPLES = 3037
+
 
 
 # =============================================================================
 # Step 1: Preprocess Examples
 # =============================================================================
+"""
 def load_and_preprocess_data(url: str, max_samples: int = None) -> None:
-    """
+   
     Load and preprocess the data only once at the beginning.
     Args:
         url: Data source URL
         max_samples: Maximum samples to process (defaults to global
         MAX_SAMPLES)
-    """
+  
     # Use global MAX_SAMPLES if no override provided
     if max_samples is None:
         max_samples = MAX_SAMPLES
@@ -49,7 +46,7 @@ def load_and_preprocess_data(url: str, max_samples: int = None) -> None:
         initialize_question_clusters()
     else:
         print("Clustering already initialized.")
-
+    """
 # =============================================================================
 # Step 2: Set up LangChain Prompt Template
 # =============================================================================

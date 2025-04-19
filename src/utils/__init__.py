@@ -5,8 +5,12 @@ from .utils import (
     extract_llm_response_components,
     is_numeric,
     format_executable_answer,
-    run_program_executor,
-    run_evaluate_all_questions,
+)
+
+from .cache_utils import (
+    save_cache,
+    load_cache,
+    cache_exists,
 )
 
 __all__ = [
@@ -16,6 +20,7 @@ __all__ = [
     "extract_llm_response_components",
     "is_numeric",
     "format_executable_answer",
-    "run_program_executor",
-    "run_evaluate_all_questions",
+    "save_cache",
+    "load_cache",
+    "cache_exists",
 ]

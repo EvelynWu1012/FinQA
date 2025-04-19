@@ -5,7 +5,7 @@ import heapq
 from src.shared import shared_data
 import importlib
 from sentence_transformers import SentenceTransformer
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 from collections import defaultdict
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -15,7 +15,7 @@ importlib.reload(shared_data)
 # global variables
 NUM_CLUSTERS = 10
 RANDOM_STATE = 42
-
+BATCH_SIZE = 512  # ADDED: For MiniBatchKMeans configuration
 
 # =============================================================================
 # Step 1: Prepare Data i.e. questions
@@ -41,10 +41,22 @@ def generate_embeddings(questions):
 # Step 3: Cluster the Embeddings
 # =============================================================================
 
-def generate_clusters(question_embeddings, num_clusters, random_state):
-    num_clusters = NUM_CLUSTERS
-    random_state = RANDOM_STATE
-    kmeans = KMeans(n_clusters=num_clusters, random_state=random_state)
+def generate_clusters(question_embeddings, num_clusters = NUM_CLUSTERS, random_state = RANDOM_STATE):
+    # CHANGED: Using MiniBatchKMeans with optimized parameters
+    kmeans = MiniBatchKMeans(
+        n_clusters=num_clusters,
+        random_state=random_state,
+        batch_size=BATCH_SIZE,
+        max_iter=100,
+        n_init=3,
+        compute_labels=True,
+        verbose=0
+    )
+
+    # Convert tensor to numpy array if needed
+    if hasattr(question_embeddings, 'numpy'):
+        question_embeddings = question_embeddings.numpy()
+
     clusters = kmeans.fit_predict(question_embeddings)
     return clusters
 
