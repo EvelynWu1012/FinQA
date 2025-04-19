@@ -1,3 +1,0 @@
-dataset,example_id,question,program,error,error_type
-train,Double_PNC/2011/page_208.pdf,"for commercial mortgage recourse obligations , what was average reserve adjustments net for 2010 and 2011 , in millions?","table_average(reserve adjustments net, none)","Invalid table reference: table_average(reserveadjustmentsnet,none) → invalid literal for int() with base 10: 'average(reserveadjustmentsnet,none'",ValueError
-train,Double_MRO/2008/page_146.pdf,what was average contingent rental amount in millions for the three year period?,"table_average(contingent rental, none)","Invalid table reference: table_average(contingentrental,none) → invalid literal for int() with base 10: 'average(contingentrental,none'",ValueError
