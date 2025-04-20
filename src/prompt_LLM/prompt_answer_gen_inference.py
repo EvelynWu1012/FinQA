@@ -119,17 +119,18 @@ Post_text:
 and calculation
 
 4. Please produce the following outputs:
-- Logical Reasoning: similar to the Apply Logical Reasoning in the examples
-- Program: function-style operations or function call expressions
-- Answer: Just the final value as a string with a max of 2 digits decimal
-- Confidence: 0-100% certainty 
+Logical Reasoning: similar to the Apply Logical Reasoning in the examples
+Program: function-style operations or function call expressions
+Answer: Just the final value as a string with a max of 2 digits decimal
+Confidence: 0-100% certainty 
 
 **Example Output Format:**
+Do not add Analyse this question into output
 Program: such as "multiply(2.12, const_1000), add(#0, 112), greater(#0, 5), 
 Prefer subtract(x,const_100) over subtract(x,100)"
 Answer: such as "5.2", "-4.9%", "8.92%", "$ 378.7 million", "2232", "no", "yes"
-Confidence: 92%
-
+Confidence: 92% with percentage sign
+Please organise the output in json format with the following keys: Logical Reasoning, Program, Answer, Confidence and with value as string.
        """
 
     # Combine all the example prompts and the final question prompt into one
@@ -185,7 +186,7 @@ def query_gpt(prompt: str) -> str:
 # =============================================================================
 # Step 3: Generate Output
 # ============================================================================
-def generate_answer(question: str) -> str:
+def generate_answer(question: str, num_example: int) -> str:
     """
     Generate the answer for a given question using preprocessed data.
     """
@@ -195,7 +196,7 @@ def generate_answer(question: str) -> str:
 
     # Retrieve context for the given question
     context = query_data(question, shared_data.processed_dataset)
-    num_example = 3
+    # num_example = 3
     few_shot_prompt = generate_few_shot_prompt(shared_data.processed_dataset,
                                                question,
                                                context, num_example)

@@ -136,10 +136,15 @@ def evaluate_answer_program(url: str, num_samples: int,
         ground_truth_exe_ans = format_executable_answer(metadata["exe_ans"])
 
         try:
-            llm_output = str(generate_answer(q))
+            num_samples = 3
+            llm_output = str(generate_answer(q, num_samples))
+            # print("debug llm_output \n", llm_output)
             parsed_output = extract_llm_response_components(llm_output)
+            # print("debug parsed_output", parsed_output)
 
             # check EXACT MATCH between predicted answer and ground truth answer
+            # print("debug parsed_output.get(answer)", parsed_output.get("answer", ""))
+            # print("debug parsed_output.get(answer, "").strip().lower()", parsed_output.get("answer", "").strip().lower())
             prediction_answer_clean = clean_text(
                 parsed_output.get("answer", "").strip().lower())
             # print("debug prediction_clean", prediction_answer_clean)
@@ -151,7 +156,6 @@ def evaluate_answer_program(url: str, num_samples: int,
             else:
                 is_correct_answer = exact_match_string(prediction_answer_clean,
                                                        ground_truth_answer_clean)
-
 
             # check EXACT MATCH between predicted program and ground truth program
             prediction_program = parsed_output.get("program",
@@ -169,6 +173,7 @@ def evaluate_answer_program(url: str, num_samples: int,
                     is_program_calc_match = exact_match_string(prediction_exec_result,ground_truth_exe_ans)
             except Exception as exec_err:
                 print(f"Execution error for question: {q[:60]}... -> {exec_err}")
+                prediction_exec_result = None
                 is_program_calc_match = False
 
             # save the results
@@ -184,7 +189,7 @@ def evaluate_answer_program(url: str, num_samples: int,
             })
 
             metrics['correct_answer'] += is_correct_answer
-            metrics['correct_program'] += is_program_calc_match
+            metrics['correct_program'] += is_program_calc_match or is_correct_program
 
         except Exception as e:
             results.append({
@@ -198,7 +203,7 @@ def evaluate_answer_program(url: str, num_samples: int,
     # Step 4: Save results
     if results:
         # Create results directory in current working directory
-        results_dir = "../../results"  # This will create it in current working directory
+        results_dir = "./results"  # This will create it in current working directory
         # exist_ok=True prevents errors if folder exists
         os.makedirs(results_dir, exist_ok=True)
         # exist_ok=True prevents errors if folder exists
@@ -220,9 +225,9 @@ def evaluate_answer_program(url: str, num_samples: int,
         if metrics['total'] else 0
 
     print("\n📊 Evaluation Summary:")
-    print(f"• Exact Matches Answer: {metrics['correct_answer']}/{metrics['total']}")
+    print(f"• Correct Answer: {metrics['correct_answer']}/{metrics['total']}")
     print(f"• Accuracy Answer: {accuracy_answer:.2f}%")
-    print(f"• Exact Matches(EM) Program {metrics['correct_program']}/{metrics['total']}")
+    print(f"• Correct Program {metrics['correct_program']}/{metrics['total']}")
     print(f"• Accuracy Program: {accuracy_program:.2f}%")
     print(f"• Results saved to: {output_csv}")
 

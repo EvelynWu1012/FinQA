@@ -1,5 +1,5 @@
 import re
-
+import json
 import psutil
 
 
@@ -91,10 +91,10 @@ def construct_chain_of_thought(data):
 
 def extract_llm_response_components(llm_output):
     """
-    Extracts key parts from a formatted LLM output.
+    Extracts key parts from a JSON-formatted LLM output.
 
     Parameters:
-        llm_output (str): The LLM-generated response text.
+        llm_output (str): The LLM-generated response text in JSON format.
 
     Returns:
         dict: A dictionary with keys:
@@ -103,26 +103,22 @@ def extract_llm_response_components(llm_output):
     """
     result = {}
 
-    reasoning_match = re.search(
-        r'\*\*Reasoning Steps:\*\*\s*(.*?)\s*('
-        r'?=\*\*Program:|\*\*Answer:|\*\*Confidence:|\Z)',
-        llm_output, re.DOTALL)
-    program_match = re.search(
-        r'\*\*Program:\*\*\s*(.*?)\s*(?=\*\*Answer:|\*\*Confidence:|\Z)',
-        llm_output, re.DOTALL)
-    answer_match = re.search(
-        r'\*\*Answer:\*\*\s*(.*?)\s*(?=\*\*Confidence:|\Z)', llm_output,
-        re.DOTALL)
-    confidence_match = re.search(r'\*\*Confidence:\*\*\s*(.+)', llm_output)
+    try:
+        # Parse the JSON string into a dictionary
+        llm_data = json.loads(llm_output)
 
-    if reasoning_match:
-        result['reasoning_steps'] = reasoning_match.group(1).strip()
-    if program_match:
-        result['program'] = program_match.group(1).strip()
-    if answer_match:
-        result['answer'] = answer_match.group(1).strip()
-    if confidence_match:
-        result['confidence'] = confidence_match.group(1).strip()
+        # Extract the relevant components, checking if each key exists
+        if 'Logical Reasoning' in llm_data:
+            result['reasoning_steps'] = llm_data['Logical Reasoning'].strip()
+        if 'Program' in llm_data:
+            result['program'] = llm_data['Program'].strip()
+        if 'Answer' in llm_data:
+            result['answer'] = llm_data['Answer'].strip()
+        if 'Confidence' in llm_data:
+            result['confidence'] = llm_data['Confidence'].strip()
+
+    except json.JSONDecodeError:
+        print("Invalid JSON input.")
 
     return result
 

@@ -330,6 +330,7 @@ def execute_program(program, question):
 
     # Split the program into individual steps using the 'split_program_steps' function
     steps = split_program_steps(program)
+    results = None # Initialize results
 
     # Iterate over each step in the program
     for i, step in enumerate(steps):
