@@ -1,5 +1,7 @@
 import re
 
+import psutil
+
 
 def clean_text(text: str) -> str:
     """
@@ -176,3 +178,9 @@ def format_executable_answer(executable_answer):
 
     raise TypeError(
         "Unsupported type for executable_answer. Must be int, float, or str.")
+
+def print_memory_usage():
+    """Helper function to log memory usage"""
+    mem = psutil.virtual_memory()
+    print(
+        f"Memory - Available: {mem.available / 1024 ** 3:.2f}GB | Used: {mem.used / 1024 ** 3:.2f}GB")

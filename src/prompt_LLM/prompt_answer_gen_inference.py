@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import os
 from typing import Dict
 import openai
-from src.prompt_LLM.prompt_example_selector import prompt_example_generator
+from src.prompt_LLM.prompt_shots_selector import prompt_example_generator
 from src.utils.utils import format_table, construct_chain_of_thought
 from src.shared import shared_data
 
@@ -116,8 +116,7 @@ Table:
 Post_text:
 {user_question_post_text} 
 3. Please use the examples above "Let's think step by step" to do reasoning 
-and 
-calculation
+and calculation
 
 4. Please produce the following outputs:
 - Logical Reasoning: similar to the Apply Logical Reasoning in the examples
@@ -200,7 +199,7 @@ def generate_answer(question: str) -> str:
     few_shot_prompt = generate_few_shot_prompt(shared_data.processed_dataset,
                                                question,
                                                context, num_example)
-    print("------ Prompt Sent to GPT ------\n", few_shot_prompt)
+    # print("------ Prompt Sent to GPT ------\n", few_shot_prompt)
     response = query_gpt(few_shot_prompt)
     print("------ GPT-3.5 Response ------\n", response)
     return response

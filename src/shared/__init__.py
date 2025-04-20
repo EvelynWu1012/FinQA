@@ -1,16 +1,14 @@
-
 from .shared_data import (
-    processed_dataset,
-    questions,
-    question_to_cluster_label,
-    cluster_idx_to_questions,
-    question_embeddings,
+    MAX_SAMPLES,
+    url,
+    CACHE_DIR
 )
 
+from .shared_initializer import shared_data
+
 __all__ = [
-    "processed_dataset",
-    "questions",
-    "question_to_cluster_label",
-    "cluster_idx_to_questions",
-    "question_embeddings",
+    "MAX_SAMPLES",
+    "url",
+    "CACHE_DIR",
+    "shared_data"
 ]
