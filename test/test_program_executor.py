@@ -1,57 +1,102 @@
 import pytest
-from src.shared import shared_data
-from src.data_loader.data_loader import download_data
-from src.preprocessing.preprocessor import preprocess_dataset
-from src.prompt_LLM.prompt_answer_gen_inference import MAX_SAMPLES
+import math
+from src.evaluation.program_executor import (
+    parse_table,
+    eval_expr,
+    resolve_value,
+    split_program_steps,
+    execute_program,
+)
 
 
-# Define a fixture for loading and preprocessing data
+# Mock the shared_data module to avoid external dependencies
+class MockSharedData:
+    processed_dataset = {}
 
 
-@pytest.fixture(scope="module")
-def prepare_data():
-    # Define the URL and data preprocessing logic
-    url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
-
-    # Only load and preprocess the data if it's not already done
-    if not shared_data.processed_dataset:
-        print("Loading and preprocessing data...")
-        raw = download_data(url)
-        if raw is None:
-            print("Failed to download data.")
-            return None  # Return None or raise an exception depending on your preference
-
-        shared_data.processed_dataset = preprocess_dataset(raw, MAX_SAMPLES)
-
-        # Check if the processed dataset is populated
-        if not shared_data.processed_dataset:
-            print("Processed dataset is still empty after preprocessing.")
-        else:
-            print(
-                f"Processed dataset has {len(shared_data.processed_dataset)} entries.")
-    else:
-        print("Data already loaded and preprocessed. Skipping...")
-
-    # Yield the processed dataset so it can be used in tests
-    return shared_data.processed_dataset
-
-
-# Modify your test to use the fixture
 @pytest.fixture
-def user_question():
-    return ("by how much did total proved undeveloped reserves decrease "
-            "during 2011?")
-def program():
-    return "subtract(395, 405), divide(#0, 405)"
+def mock_shared_data(monkeypatch):
+    mock_module = MockSharedData()
+    monkeypatch.setattr('src.evaluation.program_executor.shared_data',
+                        mock_module)
 
 
+# Test data for tables
+SAMPLE_TABLE = [
+    ["Country", "Population", "GDP"],
+    ["USA", "331,002,651", "20.94 trillion"],
+    ["China", "1,439,323,776", "14.72 trillion"],
+    ["India", "1,380,004,385", "2.87 trillion"],
+]
 
-# This part is the same as the example you provided, for running batch tests
-if __name__ == "__main__":
-    # In your example, you had something like this for batch processing
-    print("Running tests...")
+# Updated invalid table - now properly structured
+INVALID_TABLE = [
+    ["Country", "Population"],
+    ["USA"],  # Incomplete row
+    ["China", "invalid_number"],  # Invalid number format (not a list)
+]
 
-    # Run the single test
-    test_executor(program(), user_question())
 
-    print("Tests completed.")
+def test_parse_table_valid():
+    result = parse_table(SAMPLE_TABLE)
+    assert "USA" in result
+    assert result["USA"] == [331002651.0, 20.94]
+    assert result["China"] == [1439323776.0, 14.72]
+    assert result["India"] == [1380004385.0, 2.87]
+
+
+def test_parse_table_invalid_rows():
+    result = parse_table(INVALID_TABLE)
+    assert "USA" not in result  # Skipped because row is incomplete
+    assert "China" not in result  # "invalid_number" can't be parsed
+
+
+def test_resolve_value_table_lookup(mock_shared_data):
+    # Setup mock table data with proper string values (not lists)
+    MockSharedData.processed_dataset = {
+        "q1": {
+            "table": [
+                ["Country", "Population"],
+                ["USA", "331,002,651"],  # String value
+                ["China", "1,439,323,776"],
+            ]
+        }
+    }
+    # parse_table will convert these to lists of floats
+    assert resolve_value("USA", {}, "q1") == 331002651.0
+    assert resolve_value("China", {}, "q1") == 1439323776.0
+
+
+def test_execute_program_with_table(mock_shared_data):
+    # Setup mock table data with proper string values
+    MockSharedData.processed_dataset = {
+        "q2": {
+            "table": [
+                ["Country", "Population"],
+                ["USA", "331,002,651"],  # String value
+                ["China", "1,439,323,776"],
+            ]
+        }
+    }
+    program = "table_average(USA), table_average(China), add(#0, #1)"
+    result = execute_program(program, "q2")
+    # Since each country has one value, average will be that value
+    assert math.isclose(result, 331002651.0 + 1439323776.0)
+
+
+def test_execute_program_complex(mock_shared_data):
+    program = """
+        add(5, 3),
+        subtract(10, 4),
+        multiply(#0, #1),
+        divide(#2, 2),
+        greater(#3, 10)
+    """
+    result = execute_program(program, "q1")
+    assert result == "yes"
+
+
+def test_execute_program_with_constants():
+    program = "add(const_5, const_m1), multiply(#0, 2)"
+    result = execute_program(program, "q1")
+    assert result == 8.0

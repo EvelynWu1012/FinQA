@@ -1,7 +1,10 @@
 import csv
 import os
 from typing import Dict, Any
+
+from src.data_loader import download_data
 from src.evaluation import execute_program
+from src.preprocessing import preprocess_dataset
 from src.shared import shared_data
 from src.utils import clean_text
 
@@ -88,29 +91,46 @@ def run_program_executor(program: str, question: str,
 def run_evaluate_all_questions(output_dir="results",
                                verbose=False):
     """
-    Evaluate all question-program pairs in shared_data.processed_dataset.
-    Saves the results to a CSV file.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, "executor_full_results.csv")
+    Evaluates all question-program pairs stored in
+    shared_data.processed_dataset.
 
+    For each pair:
+        - Executes the corresponding program using the run_program_executor.
+        - Compares the predicted answer to the ground truth.
+        - Logs the result, correctness, and any error to a CSV file.
+
+    Parameters:
+        output_dir (str): Directory where results CSV will be saved.
+        Defaults to "results".
+        verbose (bool): If True, prints detailed debug output during program
+        execution.
+
+    Returns:
+        None
+    """
+    # Create the output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    # Define the output CSV file path
+    output_file = os.path.join(output_dir, "executor_full_results.csv")
+    # Open the CSV file for writing results
     with open(output_file, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=[
             "question", "program", "expected_answer",
             "predicted_answer", "is_correct", "error"
         ])
         writer.writeheader()
-
+        # Initialize counters for summary statistics
         total = len(shared_data.processed_dataset)
         passed = 0
         failed = 0
-
+        # Iterate through each question and its associated program
         for i, (question, data) in enumerate(
                 shared_data.processed_dataset.items(), start=1):
             program = data.get("program")
             if not program:
                 continue  # Skip entries without program
 
+            # Run the program executor and collect results
             result = run_program_executor(program, question, verbose=verbose)
 
             expected = result["ground_truth"]
@@ -118,6 +138,7 @@ def run_evaluate_all_questions(output_dir="results",
             is_correct = result["match"]
             error = result["error"]
 
+            # Write the evaluation result to the CSV file
             writer.writerow({
                 "question": question,
                 "program": program,
@@ -126,16 +147,18 @@ def run_evaluate_all_questions(output_dir="results",
                 "is_correct": is_correct,
                 "error": error
             })
-
+            # Update evaluation statistics
             if is_correct:
                 passed += 1
             elif error:
                 failed += 1
 
-        print(f"\n✅ Completed evaluating {total} questions.")
+        # Print summary statistics to console
+        print(f"\n Completed evaluating {total} questions.")
         print(f"   Correct: {passed}")
         print(f"   Errors: {failed}")
-        print(f"💾 Results saved to {output_file}")
+        print(f" Results saved to {output_file}")
+
 
 """
 if __name__ == "__main__":

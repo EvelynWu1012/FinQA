@@ -2,53 +2,12 @@ from dotenv import load_dotenv
 import os
 from typing import Dict
 import openai
-from .prompt_example_selector import prompt_example_generator
+from src.prompt_LLM.prompt_example_selector import prompt_example_generator
 from src.utils.utils import format_table, construct_chain_of_thought
 from src.shared import shared_data
 
-
-
-
 # =============================================================================
-# Step 1: Preprocess Examples
-# =============================================================================
-"""
-def load_and_preprocess_data(url: str, max_samples: int = None) -> None:
-   
-    Load and preprocess the data only once at the beginning.
-    Args:
-        url: Data source URL
-        max_samples: Maximum samples to process (defaults to global
-        MAX_SAMPLES)
-  
-    # Use global MAX_SAMPLES if no override provided
-    if max_samples is None:
-        max_samples = MAX_SAMPLES
-
-    # Check if data is already loaded and processed
-    if not shared_data.processed_dataset:
-        # Load and preprocess data only once
-        print("Loading and preprocessing data...")
-        data = download_data(url)
-        shared_data.processed_dataset = preprocess_dataset(data, MAX_SAMPLES)
-        print(
-            f"✅ After preprocessing: {len(shared_data.processed_dataset)} "
-            f"examples loaded.")
-        if len(shared_data.processed_dataset) == 0:
-            print("❌ preprocess_dataset() returned an empty dictionary!")
-        print("Data preprocessing complete.")
-    else:
-        print("Data already loaded and preprocessed. Skipping...")
-
-    if (not shared_data.question_to_cluster_label or not
-    shared_data.cluster_idx_to_questions):
-        print("Initializing clustering...")
-        initialize_question_clusters()
-    else:
-        print("Clustering already initialized.")
-    """
-# =============================================================================
-# Step 2: Set up LangChain Prompt Template
+# Step 1: Set up LangChain Prompt Template
 # =============================================================================
 # Initialize OpenAI API Key
 load_dotenv()  # This loads variables from .env into the environment
@@ -56,32 +15,58 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 # Define a function for querying the processed data
-def query_data(question: str, processed_dataset: Dict) -> str:
+def query_data(question: str, processed_dataset: Dict) -> dict:
     """
     Given a question, return the associated context from the preprocessed data.
     """
     return processed_dataset.get(question,
-                              {"error": "Data for this question not found."})
+                                 {"error": "Data for this question not found."})
 
 
 # Step 3: Create a LangChain Prompt Template
-# Define a prompt template to generate an answer or code based on the
-# question and context.
-def generate_few_shot_prompt(processed_data, user_question, context, n=3, ):
-    # all_questions = list(processed_data.keys())
-    # random.seed(42)  # Set a fixed seed for reproducibility
-    # selected_questions = random.sample(all_questions, n)
-    top_num = 3
-    selected_questions = prompt_example_generator(user_question, top_num)
 
+def generate_few_shot_prompt(processed_data, user_question, context, num_example):
+    """
+    Generate a few-shot prompt by constructing example prompts based on
+    previously processed data
+    and the provided user question. The function creates examples that
+    include pre-context, table,
+    post-context, reasoning steps, and outputs to guide the model in
+    answering the user question.
+
+    Parameters:
+        processed_data (Dict): A dictionary containing preprocessed data for
+        each question.
+        user_question (str): The user's question that needs to be answered.
+        context (Dict): A dictionary containing context for the user
+        question, including pre_text, table, post_text, and any potential error.
+        num_example: number of shots
+
+    Returns:
+        str: The final prompt string formatted for few-shot learning.
+    """
+
+    # Define the number of examples to select for the few-shot prompt
+    # top_num = 3
+    # Generate the top N most relevant questions for the given user question
+    selected_questions = prompt_example_generator(user_question, num_example)
+
+    # Initialize an empty list to hold the formatted example prompts
     examples = []
+
+    # Loop through the selected questions and format them into examples
     for idx, example_question in enumerate(selected_questions):
+        # Fetch the corresponding data for each selected question
         data = processed_data[example_question]
+        # Format the table for display
         table = format_table(data["table"])
+        # Construct the reasoning steps (chain of thought) for the example
         reasoning_steps = construct_chain_of_thought(data)
+        # Construct the output as a combination of the program and answer
         output = (f"Program: {data.get('program')}\nAnswer: "
                   f"{data.get('answer')}")
 
+        # Create a formatted example prompt string
         example_prompt = f"""
 Example: {idx + 1}
 Question: {example_question}
@@ -100,13 +85,20 @@ Let's think step by step:
 Output: 
 {output}
 """
+        # Append the formatted example to the examples list
         examples.append(example_prompt.strip())
 
+    # If an error exists in the context, return the error message immediately
     if "error" in context:
         return context["error"]
+
+    # Extract the relevant pieces of the user question context for formatting
     user_question_pre_text = context["pre_text"]
     user_question_table = format_table(context["table"])
     user_question_post_text = context["post_text"]
+
+    # Construct the main question prompt with context, reasoning, and the
+    # requested format
     question_prompt = f""" 
 Questions
 
@@ -114,7 +106,7 @@ You are a helpful financial analysis assistant. Using the pre_text, table
 and post_text and reasoning details below and examples provided above, 
 please write a program that calculates the answer to the question and then 
 provides the final answer.
-       
+
 1. Analyze this question: {user_question}
 2. Use this table and text data:
 Pre_text: 
@@ -123,13 +115,14 @@ Table:
 {user_question_table}
 Post_text:
 {user_question_post_text} 
-3. Please use the examples above "Let's think step by step" to do reason and 
+3. Please use the examples above "Let's think step by step" to do reasoning 
+and 
 calculation
 
 4. Please produce the following outputs:
 - Logical Reasoning: similar to the Apply Logical Reasoning in the examples
 - Program: function-style operations or function call expressions
-- Answer: Just the final value as string with max.2 digits decimal
+- Answer: Just the final value as a string with a max of 2 digits decimal
 - Confidence: 0-100% certainty 
 
 **Example Output Format:**
@@ -140,35 +133,58 @@ Confidence: 92%
 
        """
 
+    # Combine all the example prompts and the final question prompt into one
+    # final prompt
     final_prompt = "\n\n---\n\n".join(
         examples) + "\n\n---\n\n" + question_prompt
+
+    # Return the final constructed prompt
     return final_prompt
 
 
 # =============================================================================
-# Step 3: Initialize the LLM
+# Step 2: Initialize the LLM
 # =============================================================================
 def query_gpt(prompt: str) -> str:
     """
-        Sends a prompt to the GPT-3.5-turbo model and returns the generated
-        response.
-        """
-    client = openai.OpenAI()  # Create a client instance
+    Sends a prompt to the GPT-3.5-turbo model and returns the generated
+    response.
+    """
 
+    # Create a client instance to interact with the OpenAI API
+    client = openai.OpenAI()  # This creates an OpenAI client object to send
+    # requests to the API
+
+    # Send the prompt to the GPT-3.5-turbo model, using the 'chat'
+    # completion endpoint
     response = client.chat.completions.create(
+        # Specify the model to use for generating the response
         model="gpt-3.5-turbo",
+
+        # Provide the conversation context and the user input (the prompt)
         messages=[
+            # The system message sets up the assistant's behavior and tone
             {"role": "system",
              "content": "You are a helpful financial analysis assistant."},
+
+            # The user message contains the actual question or prompt that
+            # GPT will respond to
             {"role": "user", "content": prompt}
         ],
+
+        # Control the creativity of the response by adjusting the
+        # temperature (0.0 for deterministic output)
         temperature=0.0
+        # Lower temperature ensures more consistent and less random responses
     )
+
+    # Return the assistant's response, stripping any extra whitespace around
+    # the content
     return response.choices[0].message.content.strip()
 
 
 # =============================================================================
-# Step 4: Generate Output
+# Step 3: Generate Output
 # ============================================================================
 def generate_answer(question: str) -> str:
     """
@@ -180,9 +196,10 @@ def generate_answer(question: str) -> str:
 
     # Retrieve context for the given question
     context = query_data(question, shared_data.processed_dataset)
+    num_example = 3
     few_shot_prompt = generate_few_shot_prompt(shared_data.processed_dataset,
                                                question,
-                                               context, n=4)
+                                               context, num_example)
     print("------ Prompt Sent to GPT ------\n", few_shot_prompt)
     response = query_gpt(few_shot_prompt)
     print("------ GPT-3.5 Response ------\n", response)
@@ -218,15 +235,16 @@ def generate_ground_truth(question: str) -> Dict[str, str]:
     return ground_truth
 
 
+"""
 if __name__ == "__main__":
     # URL to download the data
     url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
 
-    # First time: Load and preprocess the data
-    load_and_preprocess_data(url)
+    
 
     # Running inference for a single question
-    question_text = "what was the percent of the growth in the revenues from 2007 to 2008"
+    question_text = ("what was the percent of the growth in the revenues from "
+                     "2007 to 2008")
     print("\n------ GPT-3.5 Response ------\n")
     generate_answer(question_text)
 
@@ -234,3 +252,4 @@ if __name__ == "__main__":
     ground_truth = generate_ground_truth(question_text)
     print("Expected Program:", ground_truth["Program"])
     print("Expected Answer:", ground_truth["Answer"])
+"""

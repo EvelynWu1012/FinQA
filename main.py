@@ -6,6 +6,7 @@ from src.prompt_LLM import initialize_question_clusters, generate_answer, \
     generate_ground_truth
 from src.shared import shared_data
 from src.utils import cache_exists, load_cache, save_cache
+
 import psutil
 
 # Global variable to hold the max_samples value
@@ -42,6 +43,8 @@ else:
 print_memory_usage()
 
 # === Load or initialize clustering ===
+initialize_question_clusters()
+"""
 if (cache_exists('question_to_cluster_label') and
         cache_exists('cluster_idx_to_questions') and
         cache_exists('question_embeddings')):
@@ -85,6 +88,7 @@ else:
         save_cache('question_embeddings', emb)
 
 print_memory_usage()
+"""
 
 # === Run Inference ===
 question_text = ("what was the percent of the growth in the revenues from "
