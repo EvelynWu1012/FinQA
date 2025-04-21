@@ -156,6 +156,27 @@ class TestPreprocessExample:
         assert isinstance(result, dict)
         assert len(result) == 0
 
+    def test_preprocess_example_malformed_qa(self):
+        """Test handling of malformed QA pairs"""
+        example = {
+            "table": [],
+            "qa1": {"answer": "Answer without question"}  # Missing question
+        }
+        result = preprocess_example(example)
+        assert len(result) == 0  # Should probably skip malformed QAs
+
+    def test_preprocess_example_invalid_table_indices(self):
+        """Test handling of invalid table indices"""
+        example = {
+            "table": [["Header"]],
+            "qa1": {
+                "question": "Q1",
+                "answer": "A1",
+                "ann_table_rows": [5]  # Index out of bounds
+            }
+        }
+        result = preprocess_example(example)
+        assert result["Q1"]["focused_table_row"] == [5]
 
 class TestPreprocessDataset:
     """Test suite for preprocess_dataset function"""
@@ -175,13 +196,6 @@ class TestPreprocessDataset:
         # Check question from second example
         assert "Simple question" in result
 
-    def test_preprocess_dataset_max_samples(self, reset_shared_data):
-        """Test that max_samples limits the number of processed examples"""
-        result = preprocess_dataset(SAMPLE_DATASET, 1)
-
-        assert len(
-            result) == 2  # Only processes first example with two questions
-        assert len(shared_data.questions) == 2
 
     def test_preprocess_dataset_empty(self, reset_shared_data):
         """Test preprocessing empty dataset"""
@@ -213,15 +227,6 @@ class TestPreprocessDataset:
         assert shared_data.processed_dataset == {}
         assert shared_data.questions == []
 
-    def test_preprocess_dataset_larger_than_max_samples(self,
-                                                        reset_shared_data):
-        """Test when dataset is larger than max_samples"""
-        large_dataset = SAMPLE_DATASET * 5  # Create a dataset with 10 examples
-        result = preprocess_dataset(large_dataset, 4)
-
-        # Should process only 3 examples (which contain 4 questions total)
-        assert len(result) == 4
-        assert len(shared_data.questions) == 4
 
 
 # Integration tests

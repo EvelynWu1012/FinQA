@@ -1,7 +1,6 @@
 import faiss
 import numpy as np
 from src.shared import shared_data
-import importlib
 from sentence_transformers import SentenceTransformer
 
 

@@ -24,26 +24,26 @@ def preprocess_example(example: Dict) -> Dict[str, Dict]:
     qa_keys = [key for key in example.keys() if key.startswith("qa")]
 
     # Retrieve common fields like pre_text, post_text, and annotation from the example
-    pre_text = example.get("pre_text",
-                           "")  # Default to empty string if not present
-    post_text = example.get("post_text",
-                            "")  # Default to empty string if not present
-    annotation = example.get("annotation",
-                             {})  # Default to empty dictionary if not present
+    pre_text = example.get("pre_text","")
+    post_text = example.get("post_text", "")
+    annotation = example.get("annotation", {})
+    # Extract the table associated with the example
+    table = example.get("table", [])
 
     # Extract reasoning dialogue and turn_program from the annotation if available
-    reasoning_dialogue = annotation.get("dialogue_break",
-                                        [])  # Default to empty list if not present
-    turn_program = annotation.get("turn_program",
-                                  [])  # Default to empty list if not present
+    reasoning_dialogue = annotation.get("dialogue_break", [])
+    turn_program = annotation.get("turn_program", [])
+
 
     # Iterate over each question-answer pair (identified by keys starting with 'qa')
     for qa_key in qa_keys:
+        qa_pair = example[qa_key]
+        if "question" not in qa_pair or "answer" not in qa_pair:
+            continue  # Skip malformed QA pairs or handle differently
         # Extract specific fields for each question-answer pair
         # Get the question for this QA pair
         question = example[qa_key]["question"]
-        # Extract the table associated with the example
-        table = example["table"]
+
         # Annotated table rows (default to empty list)
         ann_table_rows = example[qa_key].get("ann_table_rows",[])
         # Annotated text rows (default to empty list)
@@ -56,21 +56,13 @@ def preprocess_example(example: Dict) -> Dict[str, Dict]:
             "focused_table_row": ann_table_rows,
             "focused_text_row": ann_text_rows,
             "steps": example[qa_key].get("steps", []),
-            # Steps for program execution (default to empty list)
             "program": example[qa_key].get("program", ""),
-            # Program associated with the question (default to empty string)
             "exe_ans": example[qa_key].get("exe_ans"),
-            # Executed answer (may be None if not available)
             "answer": example[qa_key].get("answer"),
-            # Final answer provided for the question (may be None)
             "pre_text": pre_text,
-            # Additional context before the question (from example)
             "post_text": post_text,
-            # Additional context after the question (from example)
             "reasoning_dialogue": reasoning_dialogue,
-            # Dialogue that provides reasoning (from annotation)
             "turn_program": turn_program
-            # Program for the current turn (from annotation)
         }
     # Return the fully processed data for all questions in the example
     return processed_data
