@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import faiss
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Import the module to test
 from src.prompt_LLM.prompt_shots_selector import (

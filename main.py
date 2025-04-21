@@ -8,6 +8,7 @@ from src.shared.shared_data import url, MAX_SAMPLES
 shared_data.get_dataset(url=url, max_samples=MAX_SAMPLES)
 
 # === Load or initialize FAISS index ===
+
 shared_data.get_search_index()
 
 # === Run Inference ===

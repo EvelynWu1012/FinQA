@@ -92,13 +92,20 @@ def _load_large_dict(key):
 def cache_exists(key):
     """Check if cached object exists"""
     if key in cache:
+        # print(key)
+        # print(cache)
+        # print('true1')
         return True
 
     if any(k.startswith(f"{key}_chunk") for k in cache):
+       # print('true2')
+
+
         return True
 
     for ext in ['.json', '.npy', '.pkl']:
         if os.path.exists(os.path.join(CACHE_DIR, f"{key}{ext}")):
+            # print('true3')
             return True
 
     return False

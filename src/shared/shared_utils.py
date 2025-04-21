@@ -22,8 +22,10 @@ class SharedData:
         if cache_exists('processed_dataset') and cache_exists('questions'):
             print("Loading cached data...")
             self.processed_dataset = load_cache('processed_dataset')
+            #print(self.processed_dataset)
             self.questions = load_cache('questions')
-        else:
+            #print(self.questions)
+        if not self.processed_dataset or not self.questions:
             print("Downloading and preprocessing data...")
             raw = download_data(url)
             self.processed_dataset = preprocess_dataset(raw, max_samples)
