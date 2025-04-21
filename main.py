@@ -21,4 +21,4 @@ print("Expected Program:", ground_truth["Program"])
 print("Expected Answer:", ground_truth["Answer"])
 
 # === Run Evaluation ===
-# evaluate_answer_program(url=url, num_samples=10)
+evaluate_answer_program(url=url, num_samples=5)
