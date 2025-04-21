@@ -21,6 +21,10 @@ def prepare_questions():
     # Retrieve the list of questions from shared_data
     questions = shared_data.questions
 
+    # Raise an error if questions list is empty
+    if not questions:
+        raise ValueError("The questions list is empty. Please load the dataset first.")
+
     return questions
 
 
@@ -109,7 +113,15 @@ def get_top_similar_questions_faiss(input_question, index, top_num):
     d, idx = index.search(input_embedding, top_num)
 
     # Retrieve the top similar questions based on indices
-    top_similar_questions = [shared_data.questions[i] for i in idx[0]]
+    seen = set()
+    top_similar_questions = []
+    for i in idx[0]:
+        if i < len(shared_data.questions) and shared_data.questions[
+            i] not in seen:
+            top_similar_questions.append(shared_data.questions[i])
+            seen.add(shared_data.questions[i])
+        if len(top_similar_questions) == top_num:
+            break
 
     return top_similar_questions
 

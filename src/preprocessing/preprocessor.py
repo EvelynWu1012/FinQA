@@ -1,5 +1,5 @@
 from typing import Dict, List
-from src.shared import shared_data
+
 
 
 def preprocess_example(example: Dict) -> Dict[str, Dict]:
@@ -18,6 +18,7 @@ def preprocess_example(example: Dict) -> Dict[str, Dict]:
         Dict: The processed data for each question in the example, including associated table rows,
               reasoning dialogue, steps, programs, and answers.
     """
+
     processed_data = {}  # Initialize an empty dictionary to store processed data
 
     # Identify all keys in the example that start with 'qa' (indicating question-answer pairs)
@@ -85,6 +86,7 @@ def preprocess_dataset(data: Dict, max_samples: int) -> List[Dict]:
         Dict: A dictionary where the keys are questions (str), and the values are
               dictionaries containing the processed data for each question.
     """
+    from src.shared import shared_data
 
     # Initialize an empty dictionary to store all processed data
     all_processed_data = {}
