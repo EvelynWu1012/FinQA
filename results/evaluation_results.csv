@@ -1,0 +1,11 @@
+question,prediction_answer,ground_truth_answer,exact_match_answer,prediction_program,ground_truth_program,exact_match_program,calculation_match_program
+what was the percentage change in free cash flow from 2015 to 2016?,330,330,True,"subtract(2253, 524), divide(#0, 524)","subtract(2253, 524), divide(#0, 524)",True,True
+what did the make-whole settlements increase the total repurchase liability at the end of the period in 2012,3335,3335,True,"add(2811, 524), add(53, 11)","add(2811, 524)",False,False
+"what was the average of noninterest income in 2008 and 2009 , in billions?",4.75,4.75,True,"add(7.1, 2.4), divide(#0, const_2)","add(7.1, 2.4), divide(#0, const_2)",True,True
+"what is the average , in millions , of interest only product in 2013 , 2014 and 2015?",1803.33,1803.3,True,"add(1338, 2048), add(#0, 2024), divide(#1, const_3)","add(1338, 2048), add(#0, 2024), divide(#1, const_3)",True,True
+what percent of facilities are for consumer packaging?,43.17,43.17,True,"divide(139, 322)","divide(139, 322)",True,True
+what was the percent of the change in the weighted average grant date fair value per share of restricted stock from 2016 to 2017,15.50,15.5,True,"subtract(84.53, 73.20), divide(#0, 73.20)","subtract(84.53, 73.20), divide(#0, 73.20)",True,True
+what was the percentage change in net sales of the commodity chemicals business that will be reclassified and reported as discontinued operations from 2010 to 2011?,21,21,True,"subtract(1741, 1441), divide(#0, 1441)","subtract(1741, 1441), divide(#0, 1441)",True,True
+what is the percentage change net provision for interest and penalties from 2015 to 2016?,70.0,70.0,True,"subtract(34, 20), divide(#0, 20)","subtract(34, 20), divide(#0, 20)",True,True
+what was the percentage increase in the income from financial investments net ( note e ) from 2009 to 2010,200,200,True,"subtract(9, 3), divide(#0, 3)","subtract(9, 3), divide(#0, 3)",True,True
+"in the 2010 , the company settled an audit agreement favorable . as a result of this favorable agreement , what might the balance be on december 1st?",62049,62049,True,"add(29010, 7119), add(#0, 25920)","add(29010, 7119), add(#0, 25920)",True,True
