@@ -96,6 +96,8 @@ def get_top_similar_questions_faiss(input_question, index, top_num):
     Returns:
         list: List of the top `top_num` most similar questions.
     """
+    if index is None:
+        raise ValueError("FAISS index is not initialized.")
     # Get the embedding for the input question
     input_embedding = MODEL.encode([input_question], normalize_embeddings=True)
 

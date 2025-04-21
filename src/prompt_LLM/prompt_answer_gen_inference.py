@@ -27,12 +27,7 @@ def query_data(question: str, processed_dataset: Dict) -> dict:
 
 def generate_few_shot_prompt(processed_data, user_question, context, num_example):
     """
-    Generate a few-shot prompt by constructing example prompts based on
-    previously processed data
-    and the provided user question. The function creates examples that
-    include pre-context, table,
-    post-context, reasoning steps, and outputs to guide the model in
-    answering the user question.
+    Generate a few-shot prompt by constructing example prompts.
 
     Parameters:
         processed_data (Dict): A dictionary containing preprocessed data for
@@ -45,9 +40,10 @@ def generate_few_shot_prompt(processed_data, user_question, context, num_example
     Returns:
         str: The final prompt string formatted for few-shot learning.
     """
+    # Check if the processed data is empty
+    if "error" in context:
+        return context["error"]
 
-    # Define the number of examples to select for the few-shot prompt
-    # top_num = 3
     # Generate the top N most relevant questions for the given user question
     selected_questions = prompt_example_generator(user_question, num_example)
 
@@ -174,13 +170,14 @@ def query_gpt(prompt: str) -> str:
 
         # Control the creativity of the response by adjusting the
         # temperature (0.0 for deterministic output)
-        temperature=0.0
-        # Lower temperature ensures more consistent and less random responses
-    )
+        temperature=0.0)
 
     # Return the assistant's response, stripping any extra whitespace around
     # the content
-    return response.choices[0].message.content.strip()
+    content = response.choices[0].message.content.strip()
+    if not content:
+        raise ValueError("Empty response from GPT. Please check the prompt.")
+    return content
 
 
 # =============================================================================
@@ -217,8 +214,8 @@ def generate_ground_truth(question: str) -> Dict[str, str]:
     # Retrieve context for the given question
     context = query_data(question, shared_data.processed_dataset)
     # Retrieve the expected program and answer from the context
-    program = context.get("program", "Not Available")
-    answer = context.get("answer", "Not Available")
+    program = context.get("program", "Program not found")
+    answer = context.get("answer", "Answer not found")
 
     # Check if either value is still None or empty, and provide a fallback
     # if necessary
@@ -235,21 +232,3 @@ def generate_ground_truth(question: str) -> Dict[str, str]:
     return ground_truth
 
 
-"""
-if __name__ == "__main__":
-    # URL to download the data
-    url = "https://github.com/czyssrs/ConvFinQA/raw/main/data.zip"
-
-    
-
-    # Running inference for a single question
-    question_text = ("what was the percent of the growth in the revenues from "
-                     "2007 to 2008")
-    print("\n------ GPT-3.5 Response ------\n")
-    generate_answer(question_text)
-
-    print("\n------ Ground Truth ------")
-    ground_truth = generate_ground_truth(question_text)
-    print("Expected Program:", ground_truth["Program"])
-    print("Expected Answer:", ground_truth["Answer"])
-"""

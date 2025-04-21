@@ -198,20 +198,16 @@ class TestGenerateGroundTruth:
 # =============================================================================
 class TestIntegration:
     @patch('src.prompt_LLM.prompt_answer_gen_inference.query_gpt')
-    def test_full_answer_generation_flow(self, mock_gpt):
-        """Test the full answer generation flow"""
-        # Setup
+    @patch('src.prompt_LLM.prompt_shots_selector.get_top_similar_questions_faiss')
+    def test_full_answer_generation_flow(self, mock_faiss, mock_gpt):
+        mock_faiss.return_value = ["What was revenue in 2020?"]
         mock_gpt.return_value = json.dumps({
             "Answer": "60M",
             "Program": "lookup(Q2, Sales)",
             "Confidence": "95%"
         })
-
-        # Execute
         response = generate_answer("What is Q2 sales?", num_example=2)
         data = json.loads(response)
-
-        # Verify
         assert data["Answer"] == "60M"
         assert "Q2" in data["Program"]
         assert "%" in data["Confidence"]
