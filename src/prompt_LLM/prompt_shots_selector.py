@@ -132,6 +132,8 @@ def initialize_faiss_index():
     shared_data.faiss_index = index
     shared_data.question_embeddings = embeddings
 
+    return index, embeddings
+
 
 def prompt_example_generator(user_question, top_num):
     """

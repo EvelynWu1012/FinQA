@@ -5,8 +5,7 @@ from src.shared.shared_data import url, MAX_SAMPLES
 
 # === Load or preprocess dataset ===
 
-shared_data.get_dataset(url=url,
-                        max_samples=MAX_SAMPLES)
+shared_data.get_dataset(url=url, max_samples=MAX_SAMPLES)
 
 # === Load or initialize FAISS index ===
 shared_data.get_search_index()

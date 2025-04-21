@@ -38,28 +38,39 @@ class SharedData:
         self.question_embeddings = embeddings
 
     def get_search_index(self):
+        from src.prompt_LLM.prompt_shots_selector import initialize_faiss_index
+        def save_faiss_index(index):
+            faiss_path = os.path.join(CACHE_DIR, "faiss.index")
+            faiss.write_index(index, faiss_path)
+            save_cache('faiss_index', faiss_path)
+            return faiss_path
+
+
         if cache_exists('question_embeddings') and cache_exists('faiss_index'):
             print("Loading cached FAISS index and question embeddings...")
+            # Load question embeddings
             embeddings = load_cache('question_embeddings')
             self.question_embeddings = (
                 embeddings if isinstance(embeddings, np.ndarray)
                 else np.load(embeddings, mmap_mode='r')
             )
+
+            # Load faiss index
             index_path = load_cache('faiss_index')
-            self.faiss_index = faiss.read_index(index_path)
+            if index_path and os.path.exists(index_path):
+                self.faiss_index = faiss.read_index(index_path)
+            else:
+                print("⚠️ FAISS index path is missing. Reinitializing...")
+                self.faiss_index, self.question_embeddings = initialize_faiss_index()
+                save_faiss_index(self.faiss_index)
         else:
             print("Initializing FAISS index...")
-            from src.prompt_LLM.prompt_shots_selector import \
-                initialize_faiss_index
-            mem = psutil.virtual_memory()
-            batch_size = 512 if mem.available < 4 * 1024 ** 3 else 1024
+            self.faiss_index, self.question_embeddings = initialize_faiss_index()
 
-            initialize_faiss_index()  # Call the passed function
             if isinstance(self.question_embeddings, np.ndarray):
                 save_cache('question_embeddings', self.question_embeddings)
-            faiss_path = os.path.join("cache", "faiss.index")
-            faiss.write_index(self.faiss_index, faiss_path)
-            save_cache('faiss_index', faiss_path)
+
+            save_faiss_index(self.faiss_index)
 
 
 # Initialize shared_data instance
