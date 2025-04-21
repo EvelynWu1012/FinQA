@@ -12,6 +12,7 @@ shared_data.get_dataset(url=url, max_samples=MAX_SAMPLES)
 shared_data.get_search_index()
 
 # === Run Inference ===
+print("\n------ Inference --------------")
 question_text = ("what was the percent of the growth in the revenues from "
                  "2007 to 2008")
 generate_answer(question_text, 3)
@@ -21,4 +22,5 @@ print("Expected Program:", ground_truth["Program"])
 print("Expected Answer:", ground_truth["Answer"])
 
 # === Run Evaluation ===
-evaluate_answer_program(url=url, num_samples=5)
+# print("\n------ Evaluation --------------")
+# evaluate_answer_program(url=url, num_samples=4)

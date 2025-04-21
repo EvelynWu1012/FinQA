@@ -1,6 +1,5 @@
 question,prediction_answer,ground_truth_answer,exact_match_answer,prediction_program,ground_truth_program,exact_match_program,calculation_match_program
-what was the percentage change in revenues for investments in 50% ( 50 % ) or less owned investments accounted for using the equity method between 2000 and 2001?,-2,-2,True,"subtract(6147, 6241), divide(#0, 6241)","subtract(6147, 6241), divide(#0, 6241)",True,True
-"considering the foreign exchange contracts , what is the difference between its average during 2008 and 2009?",10.3,10.3,True,"subtract(21.6, 11.3)","subtract(21.6, 11.3)",True,True
-what percent did indemnified securities financing increase from 2012 to 2013?,5.87,5.867,True,"subtract(320078, 302341), divide(#0, 302341)","subtract(320078, 302341), divide(#0, 302341)",True,True
-what was the percent of the increase in the company recorded charges related to severance and early retirement programs from 2011 to 2012,112,112,True,"subtract(36, 17), divide(#0, 17)","subtract(36, 17), divide(#0, 17)",True,True
-what is the unfavorable foreign currency impact in operating expenses in 2015?,75,212,False,"subtract(106, 31)","subtract(243, 31)",False,False
+what is the difference in effective borrowing rate in 2014 due to the use of swaps?,1.9,1.9,True,"subtract(4.2, 2.3)","subtract(4.2, 2.3)",True,False
+what is the percent of the of the owned facilities square feet to the total square feet in the united states,84,92.6,False,"divide(50.7, 60.3)","divide(31.5, 34.0)",False,False
+what percent did the net inflows increase ishares aum?,6.74,6.74,True,"subtract(655.6, 41.4), divide(41.4, #0)","subtract(655.6, 41.4), divide(41.4, #0)",True,False
+what percentage of printing paper sales where north american printing papers net sales 2014?,37,37,True,"multiply(2.1, const_1000), divide(#0, 5720)","multiply(2.1, const_1000), divide(#0, 5720)",True,False

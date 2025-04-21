@@ -3,8 +3,8 @@ from src.data_loader import download_data
 import os
 import faiss
 import numpy as np
-import psutil
-from src.shared.shared_data import MAX_SAMPLES, url, CACHE_DIR
+from src.shared.shared_data import MAX_SAMPLES, CACHE_DIR
+
 
 class SharedData:
     """A class to manage and store shared data for the application."""
@@ -22,9 +22,7 @@ class SharedData:
         if cache_exists('processed_dataset') and cache_exists('questions'):
             print("Loading cached data...")
             self.processed_dataset = load_cache('processed_dataset')
-            #print(self.processed_dataset)
             self.questions = load_cache('questions')
-            #print(self.questions)
         if not self.processed_dataset or not self.questions:
             print("Downloading and preprocessing data...")
             raw = download_data(url)
@@ -41,12 +39,12 @@ class SharedData:
 
     def get_search_index(self):
         from src.prompt_LLM.prompt_shots_selector import initialize_faiss_index
+
         def save_faiss_index(index):
             faiss_path = os.path.join(CACHE_DIR, "faiss.index")
             faiss.write_index(index, faiss_path)
             save_cache('faiss_index', faiss_path)
             return faiss_path
-
 
         if cache_exists('question_embeddings') and cache_exists('faiss_index'):
             print("Loading cached FAISS index and question embeddings...")
@@ -63,11 +61,13 @@ class SharedData:
                 self.faiss_index = faiss.read_index(index_path)
             else:
                 print("⚠️ FAISS index path is missing. Reinitializing...")
-                self.faiss_index, self.question_embeddings = initialize_faiss_index()
+                self.faiss_index, self.question_embeddings = (
+                    initialize_faiss_index())
                 save_faiss_index(self.faiss_index)
         else:
             print("Initializing FAISS index...")
-            self.faiss_index, self.question_embeddings = initialize_faiss_index()
+            self.faiss_index, self.question_embeddings = (
+                initialize_faiss_index())
 
             if isinstance(self.question_embeddings, np.ndarray):
                 save_cache('question_embeddings', self.question_embeddings)

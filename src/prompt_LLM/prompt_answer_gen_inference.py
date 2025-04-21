@@ -19,8 +19,8 @@ def query_data(question: str, processed_dataset: Dict) -> dict:
     """
     Given a question, return the associated context from the preprocessed data.
     """
-    return processed_dataset.get(question,
-                                 {"error": "Data for this question not found."})
+    return processed_dataset.get(question, {"error": "Data for this question "
+                                                     "not found."})
 
 
 # Step 3: Create a LangChain Prompt Template
@@ -34,7 +34,7 @@ def generate_few_shot_prompt(processed_data, user_question, context, num_example
         each question.
         user_question (str): The user's question that needs to be answered.
         context (Dict): A dictionary containing context for the user
-        question, including pre_text, table, post_text, and any potential error.
+        question, including pre_text, table, post_text, and any potential error
         num_example: number of shots
 
     Returns:
@@ -52,13 +52,9 @@ def generate_few_shot_prompt(processed_data, user_question, context, num_example
 
     # Loop through the selected questions and format them into examples
     for idx, example_question in enumerate(selected_questions):
-        # Fetch the corresponding data for each selected question
         data = processed_data[example_question]
-        # Format the table for display
         table = format_table(data["table"])
-        # Construct the reasoning steps (chain of thought) for the example
         reasoning_steps = construct_chain_of_thought(data)
-        # Construct the output as a combination of the program and answer
         output = (f"Program: {data.get('program')}\nAnswer: "
                   f"{data.get('answer')}")
 
@@ -81,7 +77,7 @@ Let's think step by step:
 Output: 
 {output}
 """
-        # Append the formatted example to the examples list
+        # Append the formatted example to the example list
         examples.append(example_prompt.strip())
 
     # If an error exists in the context, return the error message immediately
@@ -126,7 +122,8 @@ Program: such as "multiply(2.12, const_1000), add(#0, 112), greater(#0, 5),
 Prefer subtract(x,const_100) over subtract(x,100)"
 Answer: such as "5.2", "-4.9%", "8.92%", "$ 378.7 million", "2232", "no", "yes"
 Confidence: 92% with percentage sign
-Please organise the output in json format with the following keys: Logical Reasoning, Program, Answer, Confidence and with value as string.
+Please organise the output in json format with the following keys: 
+Logical Reasoning, Program, Answer, Confidence and with value as string.
        """
 
     # Combine all the example prompts and the final question prompt into one
@@ -230,5 +227,3 @@ def generate_ground_truth(question: str) -> Dict[str, str]:
     }
 
     return ground_truth
-
-

@@ -1,6 +1,7 @@
 import re
 import json
 import psutil
+import unicodedata
 
 
 def clean_text(text: str) -> str:
@@ -21,8 +22,12 @@ def clean_text(text: str) -> str:
     if text.lower() in ['yes', 'no']:
         return text.lower()
 
+    # Normalize the text to NFKC form
+    text = unicodedata.normalize('NFKC', text)
+
     # Remove all non-digit characters except for decimal points and minus signs
     text = re.sub(r"[^0-9.-]", "", text)
+
     return text
 
 
@@ -141,6 +146,8 @@ def is_numeric(s):
     """
     try:
         float(s)  # Tries to convert the string to a float
+        if s.lower() in ["nan", "inf", "-inf"]:
+            return False
         return True
     except ValueError:
         return False
@@ -175,8 +182,10 @@ def format_executable_answer(executable_answer):
     raise TypeError(
         "Unsupported type for executable_answer. Must be int, float, or str.")
 
+
 def print_memory_usage():
     """Helper function to log memory usage"""
     mem = psutil.virtual_memory()
     print(
-        f"Memory - Available: {mem.available / 1024 ** 3:.2f}GB | Used: {mem.used / 1024 ** 3:.2f}GB")
+        f"Memory - Available: {mem.available / 1024 ** 3:.2f}GB | Used: "
+        f"{mem.used / 1024 ** 3:.2f}GB")

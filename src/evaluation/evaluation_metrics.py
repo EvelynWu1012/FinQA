@@ -2,7 +2,6 @@ import os
 import random
 import csv
 from .program_executor import execute_program
-
 from src.shared import shared_data
 from src.utils.utils import extract_llm_response_components, clean_text, is_numeric,format_executable_answer
 from src.data_loader import download_data
@@ -172,7 +171,7 @@ def evaluate_answer_program(url: str, num_samples: int,
                 else:
                     is_program_calc_match = exact_match_string(prediction_exec_result,ground_truth_exe_ans)
             except Exception as exec_err:
-                print(f"Execution error for question: {q[:60]}... -> {exec_err}")
+                # print(f"Execution error for question: {q[:60]}... -> {exec_err}")
                 prediction_exec_result = None
                 is_program_calc_match = False
 
